@@ -1,6 +1,14 @@
+syntax:glob
+.DS_Store
+xcuserdata
+*.[ao]
+
+syntax:regexp
 (^|/)CVS($|/)
 (^|/)\.hg($|/)
 (^|/)\.hgtags($|/)
+(^|/)build($|)
+\.pbxuser$
 ^drawterm.log$
 ^state$
 ^state.old$

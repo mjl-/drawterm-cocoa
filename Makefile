@@ -1,9 +1,12 @@
 ROOT=.
 
+# The new osx-cocoa provides its own version of main.o
+MAINO=main.$O
+
 include Make.config
 
 OFILES=\
-	main.$O\
+	$(MAINO)\
 	cpu.$O\
 	readcons.$O\
 	secstore.$O\
