@@ -4,7 +4,7 @@ AR=ar
 AS=llvm-gcc -c
 RANLIB=ranlib
 CC=llvm-gcc
-CFLAGS=-Wall -Wno-missing-braces -Wshorten-64-to-32 -arch x86_64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk -mmacosx-version-min=10.8 -ggdb -I. -I$(ROOT) -I$(ROOT)/include -I$(ROOT)/kern -c -D_THREAD_SAFE $(PTHREAD) -O2
+CFLAGS=-Wall -Wno-missing-braces -Wshorten-64-to-32 -arch x86_64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk -mmacosx-version-min=10.8 -ggdb -I. -I$(ROOT) -I$(ROOT)/include -I$(ROOT)/kern -c -D_THREAD_SAFE -DPTHREAD
 O=o
 OS=posix
 GUI=osx-cocoa

@@ -1,11 +1,9 @@
-#define Cursor OSXCursor
 #define Point OSXPoint
 #define Rect OSXRect
 
 #import <Cocoa/Cocoa.h>
 #import "screen-cocoa.h"
 
-#undef Cursor
 #undef Point
 #undef Rect
 
@@ -13,6 +11,7 @@
 
 #include "u.h"
 #include "lib.h"
+// #include  "cocoa-thread.h"
 #include "kern/dat.h"
 #include "kern/fns.h"
 #include "error.h"
@@ -23,24 +22,21 @@
 
 typedef struct Cursor Cursor;
 #include <cursor.h>
+#include "kern/screen.h"
 
 #include "osx-keycodes.h"
-#include "screen.h"
 #include "drawterm.h"
 #include "bigarrow.h"
 #include "docpng.h"
 
 extern Cursorinfo cursor;
 
-#define LOG	if(0)NSLog
+#define LOG	if(1)NSLog
 
 int usegestures = 0;
 int useliveresizing = 0;
 int useoldfullscreen = 0;
 int usebigarrow = 0;
-
-#define topLeft(r)  (((Point *) &(r))[0])
-#define botRight(r) (((Point *) &(r))[1])
 
 extern int mousequeue;
 
@@ -74,6 +70,8 @@ struct
 void calldtmain(void);
 int dtmain(int argc, char *argv[]);
 
+void	topwin(void);
+
 static void hidebars(int);
 static void flushimg(NSRect);
 static void autoflushwin(int);
@@ -90,7 +88,7 @@ static void acceptresizing(int);
 
 static NSCursor* makecursor(Cursor*);
 
-void _drawreplacescreenimage(Memimage *);
+extern void		_drawreplacescreenimage(Memimage*);
 
 @implementation appdelegate
 
@@ -193,28 +191,14 @@ static Memimage* initimg(void);
 uchar *
 attachscreen(Rectangle *r, ulong *chan, int *depth, int *width, int *softscreen, void **X)
 {
-	static int first = 1;
-
-	if(first)
-		first = 0;
-	else
-		panic("attachscreen called twice");
-
-	/*
-	 * Create window in main thread, else no cursor
-	 * change while resizing.
-	 */
-	[appdelegate performSelectorOnMainThread:@selector(callmakewin:)
-								  withObject:nil
-							   waitUntilDone:YES];
-	Memimage *img = initimg();
-	*r = img->r;
-	*chan = img->chan;
-	*depth = img->depth;
-	*width = img->width;
+	topwin();
+	*r = gscreen->r;
+	*chan = gscreen->chan;
+	*depth = gscreen->depth;
+	*width = gscreen->width;
 	*softscreen = 1;
 
-	return img->data->bdata;
+	return gscreen->data->bdata;
 }
 
 @interface appwin : NSWindow @end
@@ -290,13 +274,12 @@ makewin(NSSize *s)
 	r.origin.y = sr.size.height-wr.max.y;	/* winsize is top-left-based */
 	r.size.width = min(Dx(wr), r.size.width);
 	r.size.height = min(Dy(wr), r.size.height);
-	r = [NSWindow contentRectForFrameRect:r
-		styleMask:Winstyle];
+	r = [NSWindow contentRectForFrameRect:r styleMask:Winstyle];
 
-	w = [[appwin alloc]
-		initWithContentRect:r
-		styleMask:Winstyle
-		backing:NSBackingStoreBuffered defer:NO];
+	w = [[appwin alloc] initWithContentRect:r
+								  styleMask:Winstyle
+									backing:NSBackingStoreBuffered
+									  defer:NO];
 	if(!set)
 		[w center];
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
@@ -306,10 +289,10 @@ makewin(NSSize *s)
 	[w setContentMinSize:NSMakeSize(128,128)];
 
 	win.ofs[0] = w;
-	win.ofs[1] = [[appwin alloc]
-		initWithContentRect:sr
-		styleMask:NSBorderlessWindowMask
-		backing:NSBackingStoreBuffered defer:YES];
+	win.ofs[1] = [[appwin alloc] initWithContentRect:sr
+										   styleMask:NSBorderlessWindowMask
+											 backing:NSBackingStoreBuffered
+											   defer:YES];
 	for(i=0; i<2; i++){
 		[win.ofs[i] setAcceptsMouseMovedEvents:YES];
 		[win.ofs[i] setDelegate:[NSApp delegate]];
@@ -355,7 +338,8 @@ static void
 resizeimg()
 {
 	[win.img release];
-//	_drawreplacescreenimage(initimg());
+	gscreen = initimg();
+	_drawreplacescreenimage(gscreen);
 
 #warning mouseresized
 //	mouseresized = 1;
@@ -398,25 +382,27 @@ flushmemscreen(Rectangle r)
 		return;	/* to skip useless white init rect */
 	}else
 	if(n==1){
-		[WIN performSelectorOnMainThread:
-			@selector(makeKeyAndOrderFront:)
-			withObject:nil
-			waitUntilDone:NO];
+		[WIN performSelectorOnMainThread:@selector(makeKeyAndOrderFront:)
+							  withObject:nil
+						   waitUntilDone:NO];
 		n++;
 	}else
 	if([win.content canDraw] == 0)
 		return;
 
 	rect = NSMakeRect(r.min.x, r.min.y, Dx(r), Dy(r));
+	flushimg(rect);
+/*
 	[appdelegate performSelectorOnMainThread:@selector(callflushimg:)
 								  withObject:[NSValue valueWithRect:rect]
 							   waitUntilDone:YES
 									   modes:[NSArray arrayWithObjects:
 													NSRunLoopCommonModes,
 													@"waiting image", nil]];
+*/
 }
 
-static void drawimg(NSRect, uint);
+static void drawimg(NSRect, NSCompositingOperation);
 static void drawresizehandle(void);
 
 enum
@@ -432,7 +418,7 @@ flushimg(NSRect rect)
 {
 	NSRect dr, r;
 
-	if([win.content lockFocusIfCanDraw] == 0)
+	if([win.content lockFocusIfCanDraw] == NO)
 		return;
 
 	if(win.needimg){
@@ -521,7 +507,7 @@ flushwin(void)
 }
 
 static void
-drawimg(NSRect dr, uint op)
+drawimg(NSRect dr, NSCompositingOperation op)
 {
 	CGContextRef c;
 	CGImageRef i;
@@ -542,6 +528,7 @@ drawimg(NSRect dr, uint op)
 		CGContextTranslateCTM(c, 0, [win.img size].height);
 		CGContextScaleCTM(c, 1, -1);
 		CGContextDrawImage(c, NSRectToCGRect(sr), i);
+		CGContextFlush(c);
 		CGContextRestoreGState(c);
 
 		CGImageRelease(i);
@@ -605,9 +592,9 @@ static void updatecursor(void);
 		resizeimg();
 
 	if([WIN inLiveResize])
-		waitimg(100);
+		waitimg(50);
 	else
-		waitimg(500);
+		waitimg(250);
 }
 - (BOOL)isFlipped
 {
@@ -1309,26 +1296,26 @@ topwin(void)
 }
 
 
-
-
-
 void
 screeninit(void)
 {
-	// all work is done in attachscreen()
-}
+	/*
+	 * Create window in main thread, else no cursor
+	 * change while resizing.
+	 */
+	[appdelegate performSelectorOnMainThread:@selector(callmakewin:)
+								  withObject:nil
+							   waitUntilDone:YES];
 
-
-void
-screenload(Rectangle r, int depth, uchar *p, Point pt, int step)
-{
+	memimageinit();
+	gscreen = initimg();
 }
 
 // PAL - no palette handling.  Don't intend to either.
 void
 getcolor(ulong i, ulong *r, ulong *g, ulong *b)
 {
-
+	LOG(@"getcolor %d", i);
 // PAL: Certainly wrong to return a grayscale.
 	 *r = i;
 	 *g = i;
