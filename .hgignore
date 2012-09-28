@@ -10,6 +10,7 @@ syntax:regexp
 (^|/)build($|)
 \.pbxuser$
 ^drawterm.log$
+^drawterm
 ^state$
 ^state.old$
 ^state.journal$
