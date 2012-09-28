@@ -51,7 +51,9 @@ struct
 	int			isofs;
 	int			isnfs;
 	NSView		*content;
-	NSBitmapImageRep	*img;
+	CGDataProviderRef	dpRef;
+	CGImageRef 	img;
+//	NSBitmapImageRep	*img;
 	int			needimg;
 	int			deferflush;
 	NSCursor		*cursor;
@@ -307,19 +309,19 @@ static Memimage*
 initimg(void)
 {
 	Memimage *i;
-	NSSize size;
 	Rectangle r;
+	NSRect bounds;
 
-	size = [win.content bounds].size;
-	LOG(@"initimg %.0f %.0f", size.width, size.height);
+	bounds = [win.content bounds];
+	LOG(@"initimg %.0f %.0f", NSWidth(bounds), NSHeight(bounds));
 
-	r = Rect(0, 0, (int)size.width, (int)size.height);
+	r = Rect(0, 0, (int)NSWidth(bounds), (int)NSHeight(bounds));
 	i = allocmemimage(r, XBGR32);
 	if(i == nil)
 		panic("allocmemimage: %r");
 	if(i->data == nil)
 		panic("i->data == nil");
-
+/*
 	win.img = [[NSBitmapImageRep alloc]
 		initWithBitmapDataPlanes:&i->data->bdata
 		pixelsWide:Dx(r)
@@ -331,15 +333,24 @@ initimg(void)
 		colorSpaceName:NSDeviceRGBColorSpace
 		bytesPerRow:bytesperline(r, 32)
 		bitsPerPixel:32];
+*/
+	win.dpRef = CGDataProviderCreateWithData(0, i->data->bdata,
+											NSWidth(bounds) * NSHeight(bounds) * 4, 0);
+	win.img = CGImageCreate(NSWidth(bounds), NSHeight(bounds), 8, 32,
+							NSWidth(bounds) *4, CGColorSpaceCreateDeviceRGB(),
+							kCGImageAlphaNoneSkipLast,
+							win.dpRef, 0, 0, kCGRenderingIntentDefault);
+
 	return i;
 }
 
 static void
 resizeimg()
 {
-	[win.img release];
-	gscreen = initimg();
-	_drawreplacescreenimage(gscreen);
+//	CGImageRelease(win.img);
+//	[win.img release];
+//	gscreen = initimg();
+//	_drawreplacescreenimage(gscreen);
 
 #warning mouseresized
 //	mouseresized = 1;
@@ -422,9 +433,9 @@ flushimg(NSRect rect)
 		return;
 
 	if(win.needimg){
-		if(!NSEqualSizes(rect.size, [win.img size])){
-			LOG(@"flushimg reject %.0f %.0f",
-				rect.size.width, rect.size.height);
+		NSSize s = NSMakeSize(CGImageGetWidth(win.img), CGImageGetHeight(win.img));
+		if(!NSEqualSizes(rect.size, s)){
+			LOG(@"flushimg reject %.0f %.0f", rect.size.width, rect.size.height);
 			[win.content unlockFocus];
 			return;
 		}
@@ -452,7 +463,7 @@ flushimg(NSRect rect)
 	dr = NSIntersectionRect(r, rect);
 	drawimg(dr, NSCompositeSourceIn);
 
-	r.origin.x = [win.img size].width - Cornersize;
+	r.origin.x = CGImageGetWidth(win.img) - Cornersize;
 	dr = NSIntersectionRect(r, rect);
 	drawimg(dr, NSCompositeSourceIn);
 
@@ -462,8 +473,8 @@ flushimg(NSRect rect)
 	drawimg(dr, NSCompositeCopy);
 
 	if(MAC_OS_X_VERSION_MIN_REQUIRED < 1070 && win.isofs==0){
-		r.origin.x = [win.img size].width - Handlesize;
-		r.origin.y = [win.img size].height - Handlesize;
+		r.origin.x = CGImageGetWidth(win.img) - Handlesize;
+		r.origin.y = CGImageGetHeight(win.img) - Handlesize;
 		r.size = NSMakeSize(Handlesize, Handlesize);
 		if(NSIntersectsRect(r, rect))
 			drawresizehandle();
@@ -518,25 +529,19 @@ drawimg(NSRect dr, NSCompositingOperation op)
 
 	sr =  [win.content convertRect:dr fromView:nil];
 
-	if(MAC_OS_X_VERSION_MIN_REQUIRED >= 1080){
-		i = CGImageCreateWithImageInRect([win.img CGImage], NSRectToCGRect(dr));
-		c = [[WIN graphicsContext] graphicsPort];
+	i = CGImageCreateWithImageInRect(win.img, NSRectToCGRect(dr));
+	c = [[WIN graphicsContext] graphicsPort];
 
-		CGContextSaveGState(c);
-		if(op == NSCompositeSourceIn)
-			CGContextSetBlendMode(c, kCGBlendModeSourceIn);
-		CGContextTranslateCTM(c, 0, [win.img size].height);
-		CGContextScaleCTM(c, 1, -1);
-		CGContextDrawImage(c, NSRectToCGRect(sr), i);
-		CGContextFlush(c);
-		CGContextRestoreGState(c);
+	CGContextSaveGState(c);
+	if(op == NSCompositeSourceIn)
+		CGContextSetBlendMode(c, kCGBlendModeSourceIn);
+	CGContextTranslateCTM(c, 0.0, CGImageGetHeight(win.img));
+	CGContextScaleCTM(c, 1, -1);
+	CGContextDrawImage(c, NSRectToCGRect(sr), i);
+	CGContextRestoreGState(c);
+	CGContextFlush(c);
 
-		CGImageRelease(i);
-	}else{
-		[win.img drawInRect:dr fromRect:sr
-			operation:op fraction:1
-			respectFlipped:YES hints:nil];
-	}
+	CGImageRelease(i);
 }
 
 static void
@@ -547,7 +552,7 @@ drawresizehandle(void)
 	Point c;
 	int i,j;
 
-	c = Pt((int)[win.img size].width, (int)[win.img size].height);
+	c = Pt(CGImageGetWidth(win.img), CGImageGetHeight(win.img));
 
 	[[WIN graphicsContext] setShouldAntialias:NO];
 
@@ -589,7 +594,8 @@ static void updatecursor(void);
 	if(first)
 		first = 0;
 	else
-		resizeimg();
+		flushimg(r);
+//		resizeimg();
 
 	if([WIN inLiveResize])
 		waitimg(50);
