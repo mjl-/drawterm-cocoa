@@ -8,6 +8,7 @@ OFILES=\
 	draw.$O\
 	load.$O\
 	dtmain.$O\
+	cocoa-thread.$O\
 	screen-cocoa.$O\
 	main-cocoa.$O
 

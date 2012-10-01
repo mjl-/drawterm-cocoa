@@ -1,22 +1,31 @@
-# Mac OS X 10.7+ Cocoa version
-PTHREAD=	# for Mac
+# Mac OS X 10.8+ Cocoa version
+PTHREAD=-lpthread	# for Mac
 AR=ar
-AS=llvm-gcc -c
+AS=clang -c
 RANLIB=ranlib
-CC=llvm-gcc
-CFLAGS=-Wall -Wno-missing-braces -Wshorten-64-to-32 -arch x86_64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk -mmacosx-version-min=10.8 -ggdb -I. -I$(ROOT) -I$(ROOT)/include -I$(ROOT)/kern -c -D_THREAD_SAFE -DPTHREAD
 O=o
+#OS=xnu
 OS=posix
 GUI=osx-cocoa
-LDADD=-ggdb
-LDFLAGS=-arch x86_64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk -mmacosx-version-min=10.8 -framework Cocoa $(PTHREAD)
 TARG=drawterm
 AUDIO=none
+
+CC=clang
+WARNINGS=-Wshorten-64-to-32
+CFLAGS=$(WARNINGS) -arch x86_64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk -mmacosx-version-min=10.8 -ggdb -I. -I$(ROOT) -I$(ROOT)/include -I$(ROOT)/kern -c -D_THREAD_SAFE -DPTHREAD
+
+
+LDADD=-ggdb
+LDFLAGS=-arch x86_64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk -mmacosx-version-min=10.8 -framework Cocoa $(PTHREAD)
 
 MAINO=
 
 all: default
 
+# should probably be made to build a fat i386 and x86_64 version
 libmachdep.a:
 	arch=`uname -m|sed 's/i.86/386/;s/x86_64/amd64/'`; \
 	(cd posix-$$arch && make)
+
+%.$O: %.m
+	$(CC) $(CFLAGS) $*.m

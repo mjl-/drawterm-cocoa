@@ -11,7 +11,7 @@
 
 #include "u.h"
 #include "lib.h"
-// #include  "cocoa-thread.h"
+#include  "cocoa-thread.h"
 #include "kern/dat.h"
 #include "kern/fns.h"
 #include "error.h"
@@ -42,6 +42,7 @@ extern int mousequeue;
 
 Memimage	*gscreen;
 Screeninfo	screen;
+
 
 #define WIN	win.ofs[win.isofs]
 
@@ -94,7 +95,7 @@ extern void		_drawreplacescreenimage(Memimage*);
 
 @implementation appdelegate
 
-@synthesize arrowCursor;
+@synthesize arrowCursor = _arrowCursor;
 
 + (void)callcpumain:(id)arg
 {
@@ -119,9 +120,8 @@ extern void		_drawreplacescreenimage(Memimage*);
 	self.arrowCursor = makecursor(&bigarrow);
 	makeicon();
 	makemenu();
-	[NSApplication
-		detachDrawingThread:@selector(callcpumain:)
-		toTarget:[self class] withObject:nil];
+	[NSApplication detachDrawingThread:@selector(callcpumain:)
+							  toTarget:[self class] withObject:nil];
 }
 
 - (void)windowDidBecomeKey:(id)arg
@@ -193,12 +193,12 @@ static Memimage* initimg(void);
 uchar *
 attachscreen(Rectangle *r, ulong *chan, int *depth, int *width, int *softscreen, void **X)
 {
-	topwin();
 	*r = gscreen->r;
 	*chan = gscreen->chan;
 	*depth = gscreen->depth;
 	*width = gscreen->width;
 	*softscreen = 1;
+//	topwin();
 
 	return gscreen->data->bdata;
 }
@@ -308,7 +308,6 @@ makewin(NSSize *s)
 static Memimage*
 initimg(void)
 {
-	Memimage *i;
 	Rectangle r;
 	NSRect bounds;
 
@@ -316,11 +315,11 @@ initimg(void)
 	LOG(@"initimg %.0f %.0f", NSWidth(bounds), NSHeight(bounds));
 
 	r = Rect(0, 0, (int)NSWidth(bounds), (int)NSHeight(bounds));
-	i = allocmemimage(r, XBGR32);
-	if(i == nil)
+	gscreen = allocmemimage(r, XBGR32);
+	if(gscreen == nil)
 		panic("allocmemimage: %r");
-	if(i->data == nil)
-		panic("i->data == nil");
+	if(gscreen->data == nil)
+		panic("gscreen->data == nil");
 /*
 	win.img = [[NSBitmapImageRep alloc]
 		initWithBitmapDataPlanes:&i->data->bdata
@@ -334,23 +333,23 @@ initimg(void)
 		bytesPerRow:bytesperline(r, 32)
 		bitsPerPixel:32];
 */
-	win.dpRef = CGDataProviderCreateWithData(0, i->data->bdata,
+	win.dpRef = CGDataProviderCreateWithData(0, gscreen->data->bdata,
 											NSWidth(bounds) * NSHeight(bounds) * 4, 0);
 	win.img = CGImageCreate(NSWidth(bounds), NSHeight(bounds), 8, 32,
-							NSWidth(bounds) *4, CGColorSpaceCreateDeviceRGB(),
+							NSWidth(bounds) * 4, CGColorSpaceCreateDeviceRGB(),
 							kCGImageAlphaNoneSkipLast,
 							win.dpRef, 0, 0, kCGRenderingIntentDefault);
 
-	return i;
+	return gscreen;
 }
 
 static void
 resizeimg()
 {
-//	CGImageRelease(win.img);
+	CGImageRelease(win.img);
 //	[win.img release];
-//	gscreen = initimg();
-//	_drawreplacescreenimage(gscreen);
+	initimg();
+	_drawreplacescreenimage(gscreen);
 
 #warning mouseresized
 //	mouseresized = 1;
@@ -369,9 +368,7 @@ waitimg(int msec)
 	n = 0;
 	limit = [NSDate dateWithTimeIntervalSinceNow:msec/1000.0];
 	do{
-		[[NSRunLoop currentRunLoop]
-			runMode:@"waiting image"
-			beforeDate:limit];
+		[[NSRunLoop currentRunLoop] runMode:@"waiting image" beforeDate:limit];
 		n++;
 	}while(win.needimg && [(NSDate*)[NSDate date] compare:limit]<0);
 
@@ -381,7 +378,7 @@ waitimg(int msec)
 }
 
 void
-flushmemscreen(Rectangle r)
+_flushmemscreen(Rectangle r)
 {
 	static int n;
 	NSRect rect;
@@ -402,15 +399,19 @@ flushmemscreen(Rectangle r)
 		return;
 
 	rect = NSMakeRect(r.min.x, r.min.y, Dx(r), Dy(r));
-	flushimg(rect);
-/*
+
 	[appdelegate performSelectorOnMainThread:@selector(callflushimg:)
 								  withObject:[NSValue valueWithRect:rect]
 							   waitUntilDone:YES
 									   modes:[NSArray arrayWithObjects:
 													NSRunLoopCommonModes,
 													@"waiting image", nil]];
-*/
+}
+
+void
+flushmemscreen(Rectangle r)
+{
+	_flushmemscreen(r);
 }
 
 static void drawimg(NSRect, NSCompositingOperation);
@@ -494,13 +495,12 @@ autoflushwin(int set)
 		 * We need "NSRunLoopCommonModes", otherwise the
 		 * timer will not fire during live resizing.
 		 */
-		t = [NSTimer
-			timerWithTimeInterval:0.033
-			target:[appdelegate class]
-			selector:@selector(callflushwin:) userInfo:nil
-			repeats:YES];
-		[[NSRunLoop currentRunLoop] addTimer:t
-			forMode:NSRunLoopCommonModes];
+		t = [NSTimer timerWithTimeInterval:0.033
+									target:[appdelegate class]
+								  selector:@selector(callflushwin:)
+								  userInfo:nil
+								   repeats:YES];
+		[[NSRunLoop currentRunLoop] addTimer:t forMode:NSRunLoopCommonModes];
 	}else{
 		[t invalidate];
 		t = nil;
@@ -552,7 +552,7 @@ drawresizehandle(void)
 	Point c;
 	int i,j;
 
-	c = Pt(CGImageGetWidth(win.img), CGImageGetHeight(win.img));
+	c = Pt((int)CGImageGetWidth(win.img), (int)CGImageGetHeight(win.img));
 
 	[[WIN graphicsContext] setShouldAntialias:NO];
 
@@ -594,13 +594,12 @@ static void updatecursor(void);
 	if(first)
 		first = 0;
 	else
-		flushimg(r);
-//		resizeimg();
+		resizeimg();
 
 	if([WIN inLiveResize])
-		waitimg(50);
+		waitimg(100);
 	else
-		waitimg(250);
+		waitimg(500);
 }
 - (BOOL)isFlipped
 {
@@ -659,6 +658,8 @@ static void updatecursor(void);
 	gettouch(e, NSTouchPhaseCancelled);
 }
 @end
+
+#pragma clang diagnostic ignored "-Wgnu-designator"
 
 static int keycvt[] =
 {
@@ -1019,7 +1020,10 @@ setmouse(Point p)
 
 	if(first){
 		/* Try to move Acme's scrollbars without that! */
-		CGSetLocalEventsSuppressionInterval(0);
+		CGEventSourceRef s = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+;
+		CGEventSourceSetLocalEventsSuppressionInterval(s,0);
+		CFRelease(s);
 		first = 0;
 	}
 	if([WIN inLiveResize])
@@ -1292,10 +1296,9 @@ makecursor(Cursor *c)
 void
 topwin(void)
 {
-	[WIN performSelectorOnMainThread:
-		@selector(makeKeyAndOrderFront:)
-		withObject:nil
-		waitUntilDone:NO];
+	[WIN performSelectorOnMainThread:@selector(makeKeyAndOrderFront:)
+						  withObject:nil
+					   waitUntilDone:NO];
 
 	in.willactivate = 1;
 	[NSApp activateIgnoringOtherApps:YES];
@@ -1314,7 +1317,8 @@ screeninit(void)
 							   waitUntilDone:YES];
 
 	memimageinit();
-	gscreen = initimg();
+	initimg();
+	terminit();
 }
 
 // PAL - no palette handling.  Don't intend to either.

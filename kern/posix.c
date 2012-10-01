@@ -127,6 +127,7 @@ tramp(void *vp)
 	p = vp;
 	if(pthread_setspecific(prdakey, p))
 		panic("cannot setspecific");
+	pthread_setname_np(*p->text);
 	(*p->fn)(p->arg);
 	/* BUG: leaks Proc */
 	pthread_setspecific(prdakey, 0);
