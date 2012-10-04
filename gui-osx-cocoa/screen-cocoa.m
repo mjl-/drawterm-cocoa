@@ -43,6 +43,8 @@ extern int mousequeue;
 Memimage	*gscreen;
 Screeninfo	screen;
 
+static int readybit;
+static Rendez	rend;
 
 #define WIN	win.ofs[win.isofs]
 
@@ -52,9 +54,7 @@ struct
 	int			isofs;
 	int			isnfs;
 	NSView		*content;
-	CGDataProviderRef	dpRef;
-	CGImageRef 	img;
-//	NSBitmapImageRep	*img;
+	NSBitmapImageRep	*img;
 	int			needimg;
 	int			deferflush;
 	NSCursor		*cursor;
@@ -117,7 +117,7 @@ extern void		_drawreplacescreenimage(Memimage*);
 
 - (void)applicationDidFinishLaunching:(id)arg
 {
-	self.arrowCursor = makecursor(&bigarrow);
+	in.bigarrow = makecursor(&bigarrow);
 	makeicon();
 	makemenu();
 	[NSApplication detachDrawingThread:@selector(callcpumain:)
@@ -285,8 +285,7 @@ makewin(NSSize *s)
 	if(!set)
 		[w center];
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
-	[w setCollectionBehavior:
-		NSWindowCollectionBehaviorFullScreenPrimary];
+	[w setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
 #endif
 	[w setContentMinSize:NSMakeSize(128,128)];
 
@@ -320,9 +319,9 @@ initimg(void)
 		panic("allocmemimage: %r");
 	if(gscreen->data == nil)
 		panic("gscreen->data == nil");
-/*
+
 	win.img = [[NSBitmapImageRep alloc]
-		initWithBitmapDataPlanes:&i->data->bdata
+		initWithBitmapDataPlanes:&gscreen->data->bdata
 		pixelsWide:Dx(r)
 		pixelsHigh:Dy(r)
 		bitsPerSample:8
@@ -332,13 +331,6 @@ initimg(void)
 		colorSpaceName:NSDeviceRGBColorSpace
 		bytesPerRow:bytesperline(r, 32)
 		bitsPerPixel:32];
-*/
-	win.dpRef = CGDataProviderCreateWithData(0, gscreen->data->bdata,
-											NSWidth(bounds) * NSHeight(bounds) * 4, 0);
-	win.img = CGImageCreate(NSWidth(bounds), NSHeight(bounds), 8, 32,
-							NSWidth(bounds) * 4, CGColorSpaceCreateDeviceRGB(),
-							kCGImageAlphaNoneSkipLast,
-							win.dpRef, 0, 0, kCGRenderingIntentDefault);
 
 	return gscreen;
 }
@@ -346,10 +338,10 @@ initimg(void)
 static void
 resizeimg()
 {
-	CGImageRelease(win.img);
+	LOG(@"resizeimg");
 //	[win.img release];
-	initimg();
-	_drawreplacescreenimage(gscreen);
+//	initimg();
+//	_drawreplacescreenimage(gscreen);
 
 #warning mouseresized
 //	mouseresized = 1;
@@ -411,6 +403,9 @@ _flushmemscreen(Rectangle r)
 void
 flushmemscreen(Rectangle r)
 {
+	// sanity check.  Trips from the initial "terminal"
+    if (r.max.x < r.min.x || r.max.y < r.min.y) return;
+    
 	_flushmemscreen(r);
 }
 
@@ -432,10 +427,9 @@ flushimg(NSRect rect)
 
 	if([win.content lockFocusIfCanDraw] == NO)
 		return;
-
+/*
 	if(win.needimg){
-		NSSize s = NSMakeSize(CGImageGetWidth(win.img), CGImageGetHeight(win.img));
-		if(!NSEqualSizes(rect.size, s)){
+		if(!NSEqualSizes(rect.size, [win.img size])){
 			LOG(@"flushimg reject %.0f %.0f", rect.size.width, rect.size.height);
 			[win.content unlockFocus];
 			return;
@@ -443,7 +437,7 @@ flushimg(NSRect rect)
 		win.needimg = 0;
 	}else
 		win.deferflush = 1;
-
+*/
 	LOG(@"flushimg ok %.0f %.0f", rect.size.width, rect.size.height);
 
 	/*
@@ -474,8 +468,8 @@ flushimg(NSRect rect)
 	drawimg(dr, NSCompositeCopy);
 
 	if(MAC_OS_X_VERSION_MIN_REQUIRED < 1070 && win.isofs==0){
-		r.origin.x = CGImageGetWidth(win.img) - Handlesize;
-		r.origin.y = CGImageGetHeight(win.img) - Handlesize;
+		r.origin.x = [win.img size].width - Handlesize;
+		r.origin.y = [win.img size].height - Handlesize;
 		r.size = NSMakeSize(Handlesize, Handlesize);
 		if(NSIntersectsRect(r, rect))
 			drawresizehandle();
@@ -529,13 +523,13 @@ drawimg(NSRect dr, NSCompositingOperation op)
 
 	sr =  [win.content convertRect:dr fromView:nil];
 
-	i = CGImageCreateWithImageInRect(win.img, NSRectToCGRect(dr));
+	i = CGImageCreateWithImageInRect([win.img CGImage], NSRectToCGRect(dr));
 	c = [[WIN graphicsContext] graphicsPort];
 
 	CGContextSaveGState(c);
 	if(op == NSCompositeSourceIn)
 		CGContextSetBlendMode(c, kCGBlendModeSourceIn);
-	CGContextTranslateCTM(c, 0.0, CGImageGetHeight(win.img));
+	CGContextTranslateCTM(c, 0, [win.img size].height);
 	CGContextScaleCTM(c, 1, -1);
 	CGContextDrawImage(c, NSRectToCGRect(sr), i);
 	CGContextRestoreGState(c);
@@ -552,7 +546,7 @@ drawresizehandle(void)
 	Point c;
 	int i,j;
 
-	c = Pt((int)CGImageGetWidth(win.img), (int)CGImageGetHeight(win.img));
+	c = Pt((int)[win.img size].width, (int)[win.img size].height);
 
 	[[WIN graphicsContext] setShouldAntialias:NO];
 
@@ -1305,6 +1299,14 @@ topwin(void)
 }
 
 
+static int
+isready(void*a)
+{
+	return readybit;
+}
+
+void winproc(void *a);
+
 void
 screeninit(void)
 {
@@ -1319,6 +1321,16 @@ screeninit(void)
 	memimageinit();
 	initimg();
 	terminit();
+//	kproc("osxscreen", winproc, 0);
+//	ksleep(&rend, isready, 0);
+}
+
+void
+winproc(void *a)
+{
+	terminit();
+	readybit = 1;
+	wakeup(&rend);
 }
 
 // PAL - no palette handling.  Don't intend to either.
