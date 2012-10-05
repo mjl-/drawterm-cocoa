@@ -314,33 +314,6 @@ drawrefactive(void *a)
 	return c->refreshme || c->refresh!=0;
 }
 
-void
-_drawreplacescreenimage(Memimage *m)
-{
-	/*
-	 * Replace the screen image because the screen
-	 * was resized.
-	 * 
-	 * In theory there should only be one reference
-	 * to the current screen image, and that's through
-	 * client0's image 0, installed a few lines above.
-	 * Once the client drops the image, the underlying backing 
-	 * store freed properly.  The client is being notified
-	 * about the resize through external means, so all we
-	 * need to do is this assignment.
-	 */
-	Memimage *om;
-
-	qlock(&sdraw.lk);
-	om = screenimage;
-	screenimage = m;
-//	m->screenref = 1;
-//	if(om && --om->screenref == 0){
-		_freememimage(om);
-//	}
-	qunlock(&sdraw.lk);
-}
-
 static
 void
 drawrefreshscreen(DImage *l, Client *client)

@@ -42,9 +42,6 @@ extern int mousequeue;
 Memimage	*gscreen;
 Screeninfo	screen;
 
-static int readybit;
-static Rendez	rend;
-
 #define WIN	win.ofs[win.isofs]
 
 struct
@@ -91,6 +88,7 @@ static void acceptresizing(int);
 static NSCursor* makecursor(Cursor*);
 
 extern void		_drawreplacescreenimage(Memimage*);
+void _flushmemscreen(Rectangle r);
 
 @implementation appdelegate
 
@@ -198,6 +196,7 @@ attachscreen(Rectangle *r, ulong *chan, int *depth, int *width, int *softscreen,
 	*width = gscreen->width;
 	*softscreen = 1;
 	topwin();
+	_flushmemscreen(gscreen->r);
 
 	return gscreen->data->bdata;
 }
@@ -306,6 +305,7 @@ makewin(NSSize *s)
 static Memimage*
 initimg(void)
 {
+	Memimage *i;
 	Rectangle r;
 	NSRect bounds;
 
@@ -313,14 +313,14 @@ initimg(void)
 	LOG(@"initimg %.0f %.0f", NSWidth(bounds), NSHeight(bounds));
 
 	r = Rect(0, 0, (int)NSWidth(bounds), (int)NSHeight(bounds));
-	gscreen = allocmemimage(r, XBGR32);
-	if(gscreen == nil)
+	i = allocmemimage(r, XBGR32);
+	if(i == nil)
 		panic("allocmemimage: %r");
-	if(gscreen->data == nil)
+	if(i->data == nil)
 		panic("gscreen->data == nil");
 
 	win.img = [[NSBitmapImageRep alloc]
-		initWithBitmapDataPlanes:&gscreen->data->bdata
+		initWithBitmapDataPlanes:&i->data->bdata
 		pixelsWide:Dx(r)
 		pixelsHigh:Dy(r)
 		bitsPerSample:8
@@ -331,6 +331,14 @@ initimg(void)
 		bytesPerRow:bytesperline(r, 32)
 		bitsPerPixel:32];
 
+	if(gscreen != nil) {
+		drawqlock();
+		_freememimage(gscreen);
+		gscreen = i;
+		drawqunlock();
+	} else
+		gscreen = i;
+
 	return gscreen;
 }
 
@@ -338,9 +346,8 @@ static void
 resizeimg()
 {
 	LOG(@"resizeimg");
-//	[win.img release];
-//	initimg();
-//	_drawreplacescreenimage(gscreen);
+	[win.img release];
+	initimg();
 
 #warning mouseresized
 //	mouseresized = 1;
@@ -371,31 +378,15 @@ waitimg(int msec)
 void
 _flushmemscreen(Rectangle r)
 {
-	static int n;
 
 	LOG(@"_flushmemscreen");
-	if(n==0){
-		// pick up first flush so attachscreen() will draw
-		n++;
-		[WIN performSelectorOnMainThread:@selector(makeKeyAndOrderFront:)
-							  withObject:nil
-						   waitUntilDone:YES];
-	}
 
 	if([win.content canDraw] == 0)
 		return;
 
 	NSRect rect;
 	rect = NSMakeRect(r.min.x, r.min.y, Dx(r), Dy(r));
-	flushimg(rect);
-	/*
-	[appdelegate performSelectorOnMainThread:@selector(callflushimg:)
-								  withObject:[NSValue valueWithRect:rect]
-							   waitUntilDone:YES
-									   modes:[NSArray arrayWithObjects:
-													NSRunLoopCommonModes,
-													@"waiting image", nil]];
-	*/
+	flushimg(rect);		// OS X no longer needs to draw from the main thread
 }
 
 void
@@ -1296,15 +1287,6 @@ topwin(void)
 	[NSApp activateIgnoringOtherApps:YES];
 }
 
-
-static int
-isready(void*a)
-{
-	return readybit;
-}
-
-void winproc(void *a);
-
 void
 screeninit(void)
 {
@@ -1319,16 +1301,6 @@ screeninit(void)
 	memimageinit();
 	initimg();
 	terminit();
-//	kproc("osxscreen", winproc, 0);
-//	ksleep(&rend, isready, 0);
-}
-
-void
-winproc(void *a)
-{
-	terminit();
-	readybit = 1;
-	wakeup(&rend);
 }
 
 // PAL - no palette handling.  Don't intend to either.
