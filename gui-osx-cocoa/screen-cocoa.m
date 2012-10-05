@@ -11,7 +11,6 @@
 
 #include "u.h"
 #include "lib.h"
-#include  "cocoa-thread.h"
 #include "kern/dat.h"
 #include "kern/fns.h"
 #include "error.h"
@@ -198,7 +197,7 @@ attachscreen(Rectangle *r, ulong *chan, int *depth, int *width, int *softscreen,
 	*depth = gscreen->depth;
 	*width = gscreen->width;
 	*softscreen = 1;
-//	topwin();
+	topwin();
 
 	return gscreen->data->bdata;
 }
@@ -373,31 +372,30 @@ void
 _flushmemscreen(Rectangle r)
 {
 	static int n;
-	NSRect rect;
 
 	LOG(@"_flushmemscreen");
-
 	if(n==0){
+		// pick up first flush so attachscreen() will draw
 		n++;
-		return;	/* to skip useless white init rect */
-	}else
-	if(n==1){
 		[WIN performSelectorOnMainThread:@selector(makeKeyAndOrderFront:)
 							  withObject:nil
-						   waitUntilDone:NO];
-		n++;
-	}else
+						   waitUntilDone:YES];
+	}
+
 	if([win.content canDraw] == 0)
 		return;
 
+	NSRect rect;
 	rect = NSMakeRect(r.min.x, r.min.y, Dx(r), Dy(r));
-
+	flushimg(rect);
+	/*
 	[appdelegate performSelectorOnMainThread:@selector(callflushimg:)
 								  withObject:[NSValue valueWithRect:rect]
 							   waitUntilDone:YES
 									   modes:[NSArray arrayWithObjects:
 													NSRunLoopCommonModes,
 													@"waiting image", nil]];
+	*/
 }
 
 void
@@ -458,7 +456,7 @@ flushimg(NSRect rect)
 	dr = NSIntersectionRect(r, rect);
 	drawimg(dr, NSCompositeSourceIn);
 
-	r.origin.x = CGImageGetWidth(win.img) - Cornersize;
+	r.origin.x = [win.img size].width - Cornersize;
 	dr = NSIntersectionRect(r, rect);
 	drawimg(dr, NSCompositeSourceIn);
 
@@ -1292,7 +1290,7 @@ topwin(void)
 {
 	[WIN performSelectorOnMainThread:@selector(makeKeyAndOrderFront:)
 						  withObject:nil
-					   waitUntilDone:NO];
+					   waitUntilDone:YES];
 
 	in.willactivate = 1;
 	[NSApp activateIgnoringOtherApps:YES];
