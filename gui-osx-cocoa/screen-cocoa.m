@@ -106,7 +106,6 @@ void _flushmemscreen(Rectangle r);
 }
 
 + (void)callflushwin:(id)arg{ flushwin();}
-+ (void)callflushimg:(NSValue*)v{ flushimg([v rectValue]);}
 + (void)callmakewin:(NSValue*)v{ makewin([v pointerValue]);}
 + (void)callsetcursor0:(NSCursor*)c { setcursor0(c); }
 
@@ -1284,7 +1283,6 @@ topwin(void)
 					   waitUntilDone:YES];
 
 	in.willactivate = 1;
-	[NSApp activateIgnoringOtherApps:YES];
 }
 
 void
