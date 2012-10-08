@@ -121,7 +121,7 @@ vlong
 parseipmask(uchar *to, char *from)
 {
 	int i, w;
-	vlong x;
+	ulong x;
 	uchar *p;
 
 	if(*from == '/'){

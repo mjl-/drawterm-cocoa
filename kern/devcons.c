@@ -763,10 +763,10 @@ consread(Chan *c, void *buf, long n, vlong off)
 		}
 		if(c->aux == nil)
 			return 0;
-		return readstr(offset, buf, n, c->aux);
+		return readstr((ulong)offset, buf, n, c->aux);
 
 	case Qsecstore:
-		return readstr(offset, buf, n, secstorebuf);
+		return readstr((ulong)offset, buf, n, secstorebuf);
 
 	case Qsysstat:
 		return 0;
@@ -822,7 +822,7 @@ conswrite(Chan *c, void *va, long n, vlong off)
 	char *a = va;
 	int fd;
 	Chan *swc;
-	ulong offset = off;
+	ulong offset = (ulong)off;
 	Cmdbuf *cb;
 	Cmdtab *ct;
 

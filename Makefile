@@ -26,7 +26,7 @@ LIBS1=\
 	libdraw/libdraw.a\
 	gui-$(GUI)/libgui.a\
 	libc/libc.a\
-	libip/libip.a\
+#	libip/libip.a\
 
 # stupid gcc
 #LIBS=$(LIBS1) $(LIBS1) $(LIBS1) libmachdep.a
