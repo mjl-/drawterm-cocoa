@@ -25,10 +25,12 @@ typedef struct Cursor Cursor;
 
 #include "osx-keycodes.h"
 #include "drawterm.h"
+#include "devdraw.h"
 #include "bigarrow.h"
 #include "docpng.h"
 
 extern Cursorinfo cursor;
+extern int mousequeue;
 
 #define LOG	if(1)NSLog
 
@@ -37,7 +39,10 @@ int useliveresizing = 0;
 int useoldfullscreen = 0;
 int usebigarrow = 0;
 
-extern int mousequeue;
+static int alting;
+
+Rectangle mouserect;
+int	mouseresized;
 
 Memimage	*gscreen;
 Screeninfo	screen;
@@ -348,8 +353,7 @@ resizeimg()
 	[win.img release];
 	initimg();
 
-#warning mouseresized
-//	mouseresized = 1;
+	mouseresized = 1;
 	sendmouse();
 }
 
@@ -716,6 +720,15 @@ keystroke(int c)
 	kbdputc(kbdq, c);
 }
 
+void
+abortcompose(void)
+{
+	if(alting) {
+		keystroke(Kalt);
+		alting = 0;
+	}
+}
+
 static void
 getkeyboard(NSEvent *e)
 {
@@ -761,8 +774,10 @@ getkeyboard(NSEvent *e)
 				in.kbuttons |= 4;
 			sendmouse();
 		}else
-		if(m&NSAlternateKeyMask && (omod&NSAlternateKeyMask)==0)
+		if(m&NSAlternateKeyMask && (omod&NSAlternateKeyMask)==0){
 			keystroke(Kalt);
+			alting = 1;
+		}
 		break;
 
 	default:
@@ -863,14 +878,12 @@ getmouse(NSEvent *e)
 	case NSRightMouseUp:
 		b = [NSEvent pressedMouseButtons];
 		b = (b&~6) | (b&4)>>1 | (b&2)<<1;
-#warning mouseswap
-//		b = mouseswap(b);
+		b = mouseswap(b);
 
 		if(b == 1){
 			m = [e modifierFlags];
 			if(m & NSAlternateKeyMask){
-#warning abortcompose
-//				abortcompose();
+				abortcompose();
 				b = 2;
 			}else
 			if(m & NSCommandKeyMask)
@@ -922,7 +935,48 @@ static void sendclick(NSUInteger);
 static uint
 msec(void)
 {
-	return nsec()/1000000;
+	#warning nsec
+//	return nsec()/1000000;
+	return ticks();
+}
+
+void
+mousetrack(int x, int y, int b, uint ms)
+{
+	Mouse *m;
+	int i;
+	
+	if(x < mouserect.min.x)
+		x = mouserect.min.x;
+	if(x > mouserect.max.x)
+		x = mouserect.max.x;
+	if(y < mouserect.min.y)
+		y = mouserect.min.y;
+	if(y > mouserect.max.y)
+		y = mouserect.max.y;
+
+	lock(&mouse.lk);
+	i = mouse.wi;
+	if(mousequeue) {
+		if(i == mouse.ri || mouse.lastb != b || mouse.trans) {
+			mouse.wi = (i+1)%Mousequeue;
+			if(mouse.wi == mouse.ri)
+				mouse.ri = (mouse.ri+1)%Mousequeue;
+			mouse.trans = mouse.lastb != b;
+		} else {
+			i = (i-1+Mousequeue)%Mousequeue;
+		}
+	} else {
+		mouse.wi = (i+1)%Mousequeue;
+		mouse.ri = i;
+	}
+	mouse.queue[i].xy.x = x;
+	mouse.queue[i].xy.y = y;
+	mouse.queue[i].buttons = b;
+	mouse.queue[i].msec = msec();
+	mouse.lastb = b;
+	unlock(&mouse.lk);
+	wakeup(&mouse.r);
 }
 
 static void
@@ -983,10 +1037,10 @@ sendmouse(void)
 	NSUInteger b;
 
 	size = [win.content bounds].size;
-//	mouserect = Rect(0, 0, size.width, size.height);
+	mouserect = Rect(0, 0, size.width, size.height);
 
 	b = in.kbuttons | in.mbuttons | in.mscroll;
-//	mousetrack(in.mpos.x, in.mpos.y, b, msec());
+	mousetrack(in.mpos.x, in.mpos.y, b, msec());
 	in.mscroll = 0;
 }
 
