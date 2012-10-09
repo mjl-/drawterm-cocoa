@@ -32,14 +32,14 @@ typedef struct Cursor Cursor;
 extern Cursorinfo cursor;
 extern int mousequeue;
 
-#define LOG	if(1)NSLog
+#define LOG	if(0)NSLog
 
 int usegestures = 0;
 int useliveresizing = 0;
 int useoldfullscreen = 0;
 int usebigarrow = 0;
 
-static int alting;
+int alting;
 
 Rectangle mouserect;
 int	mouseresized;
@@ -432,6 +432,8 @@ flushimg(NSRect rect)
 */
 	LOG(@"flushimg ok %.0f %.0f", rect.size.width, rect.size.height);
 
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+
 	/*
 	 * Unless we are inside "drawRect", we have to round
 	 * the corners ourselves, if this is the custom.
@@ -467,6 +469,7 @@ flushimg(NSRect rect)
 			drawresizehandle();
 	}
 	[win.content unlockFocus];
+	[pool release];
 }
 
 static void
@@ -935,7 +938,7 @@ static void sendclick(NSUInteger);
 static uint
 msec(void)
 {
-	#warning nsec
+#warning nsec
 //	return nsec()/1000000;
 	return ticks();
 }
@@ -973,7 +976,7 @@ mousetrack(int x, int y, int b, uint ms)
 	mouse.queue[i].xy.x = x;
 	mouse.queue[i].xy.y = y;
 	mouse.queue[i].buttons = b;
-	mouse.queue[i].msec = msec();
+	mouse.queue[i].msec = ms;
 	mouse.lastb = b;
 	unlock(&mouse.lk);
 	wakeup(&mouse.r);
