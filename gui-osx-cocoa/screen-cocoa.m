@@ -1379,14 +1379,10 @@ setcolor(ulong index, ulong red, ulong green, ulong blue)
 	assert(0);
 }
 
-// void	refreshrect(Rectangle);
-
 void
 cursorarrow(void)
 {
-	[NSCursor pop];
-//	[in.bigarrow push];
-	[NSCursor unhide];
+	setcursor0([in.bigarrow retain]);
 }
 
 void
