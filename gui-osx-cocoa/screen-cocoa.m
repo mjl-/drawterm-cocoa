@@ -1394,11 +1394,12 @@ mouseset(Point xy)
 char*
 clipread(void)
 {
-	return 0;
+	return getsnarf();
 }
 
 int
 clipwrite(char *snarf)
 {
+	putsnarf(snarf);
 	return 0;
 }
