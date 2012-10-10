@@ -37,7 +37,7 @@ extern int mousequeue;
 int usegestures = 0;
 int useliveresizing = 0;
 int useoldfullscreen = 0;
-int usebigarrow = 0;
+int usebigarrow = 1;
 
 int alting;
 
@@ -810,7 +810,9 @@ updatecursor(void)
 		c = in.bigarrow;
 	else
 		c = [NSCursor arrowCursor];
-	[c set];
+	[NSCursor pop];
+	[c push];
+//	[c set];
 
 	/*
 	 * Without this trick, we can come back from the dock
@@ -1262,22 +1264,24 @@ setcursor(void)
 	Cursor crsr;
 	int i;
 
-	for(i=0; i<16; i++){
-		crsr.set[i] = ((ushort*)cursor.set)[i];
-		crsr.clr[i] = ((ushort*)cursor.clr)[i];
+	for(i=0; i<2*16; i++){
+		crsr.set[i] = cursor.set[i];
+		crsr.clr[i] = cursor.set[i] | cursor.clr[i];
 	}
 	crsr.offset.x = cursor.offset.x;
 	crsr.offset.y = cursor.offset.y;
 
 	newCursor = makecursor(&crsr);
-
+	setcursor0(newCursor);
 	/*
 	 * No cursor change unless in main thread.
 	 */
+	 /*
 	[appdelegate
 		performSelectorOnMainThread:@selector(callsetcursor0:)
 		withObject:newCursor
 		waitUntilDone:YES];
+		*/
 }
 
 static void
@@ -1380,11 +1384,15 @@ setcolor(ulong index, ulong red, ulong green, ulong blue)
 void
 cursorarrow(void)
 {
+	[NSCursor pop];
+//	[in.bigarrow push];
+	[NSCursor unhide];
 }
 
 void
 mouseset(Point xy)
 {
+#warning mouseset nop
 }
 
 char*

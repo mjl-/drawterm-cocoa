@@ -1,10 +1,11 @@
 # Mac OS X 10.8+ Cocoa version
 PTHREAD=-lpthread	# for Mac
 
-ASFLAGS=-m32
+ASFLAGS64=-m64
+ASFLAGS32=-m32
 
 AR=ar
-AS=clang -c $(ASFLAGS)
+AS=clang -c $(ASFLAGS64)
 RANLIB=ranlib
 O=o
 OS=posix
@@ -19,20 +20,20 @@ ARCHFLAGS=-arch i386 -isysroot /Applications/Xcode.app/Contents/Developer/Platfo
 WARNINGS=-Wshorten-64-to-32
 
 CC=clang
-CFLAGS=$(WARNINGS) $(ARCHFLAGS) -fwritable-strings -g -O0 -I. -I$(ROOT) -I$(ROOT)/include -I$(ROOT)/kern -c -D_THREAD_SAFE -DPTHREAD
+CFLAGS=$(WARNINGS) $(ARCHFLAGS64) -fwritable-strings -g -O0 -I. -I$(ROOT) -I$(ROOT)/include -I$(ROOT)/kern -c -D_THREAD_SAFE -DPTHREAD
 
 
 LDADD=-g
 # -Wl,-why_load
 
-LDFLAGS=$(ARCHFLAGS) -framework Cocoa $(PTHREAD)
+LDFLAGS=$(ARCHFLAGS64) -framework Cocoa $(PTHREAD)
 
 MAINO=
 
 all: default
 
 # should probably be made to build a fat i386 and x86_64 versions
+# arch=386;
 libmachdep.a:
-	# arch=`uname -m|sed 's/i.86/386/;s/x86_64/amd64/'`; \
-	arch=386; \
+	arch=`uname -m|sed 's/i.86/386/;s/x86_64/amd64/'`; \
 	(cd posix-$$arch && make)
