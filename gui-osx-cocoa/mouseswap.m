@@ -1,8 +1,8 @@
-#include <u.h>
-#include <libc.h>
-#include <draw.h>
-#include <memdraw.h>
-#include "devdraw.h"
+#import <Foundation/NSObjCRuntime.h>
+
+#undef nil
+#include "u.h"
+#include "lib.h"
 
 enum
 {
@@ -43,11 +43,11 @@ initmap(void)
 	}
 }
 
-int
-mouseswap(int but)
+NSUInteger
+mouseswap(NSUInteger but)
 {
 	int i;
-	int nbut;
+	NSUInteger nbut;
 
 	if(!map.init)
 		initmap();

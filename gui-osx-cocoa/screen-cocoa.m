@@ -92,7 +92,6 @@ static void acceptresizing(int);
 
 static NSCursor* makecursor(Cursor*);
 
-extern void		_drawreplacescreenimage(Memimage*);
 void _flushmemscreen(Rectangle r);
 
 @implementation appdelegate
@@ -321,7 +320,7 @@ initimg(void)
 	if(i == nil)
 		panic("allocmemimage: %r");
 	if(i->data == nil)
-		panic("gscreen->data == nil");
+		panic("i->data == nil");
 
 	win.img = [[NSBitmapImageRep alloc]
 		initWithBitmapDataPlanes:&i->data->bdata
@@ -335,23 +334,26 @@ initimg(void)
 		bytesPerRow:bytesperline(r, 32)
 		bitsPerPixel:32];
 
-	if(gscreen != nil) {
-		drawqlock();
-		_freememimage(gscreen);
-		gscreen = i;
-		drawqunlock();
-	} else
-		gscreen = i;
-
-	return gscreen;
+	return i;
 }
 
 static void
 resizeimg()
 {
+	Memimage *i;
+	Memimage *om;
+
 	LOG(@"resizeimg");
 	[win.img release];
-	initimg();
+
+	i = initimg();
+
+//	drawqlock();
+	om = gscreen;
+	gscreen = i;
+	if(om != nil)
+		_freememimage(om);
+//	drawqunlock();
 
 	mouseresized = 1;
 	sendmouse();
@@ -946,7 +948,7 @@ msec(void)
 }
 
 void
-mousetrack(int x, int y, int b, uint ms)
+mousetrack(int x, int y, NSUInteger b, uint ms)
 {
 	Mouse *m;
 	int i;
@@ -977,9 +979,9 @@ mousetrack(int x, int y, int b, uint ms)
 	}
 	mouse.queue[i].xy.x = x;
 	mouse.queue[i].xy.y = y;
-	mouse.queue[i].buttons = b;
+	mouse.queue[i].buttons = (int)b;
 	mouse.queue[i].msec = ms;
-	mouse.lastb = b;
+	mouse.lastb = (int)b;
 	unlock(&mouse.lk);
 	wakeup(&mouse.r);
 }
@@ -1358,7 +1360,7 @@ screeninit(void)
 							   waitUntilDone:YES];
 
 	memimageinit();
-	initimg();
+	gscreen = initimg();
 	terminit();
 }
 

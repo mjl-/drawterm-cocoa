@@ -3,7 +3,7 @@ int _drawmsgwrite(void*, int);
 void _initdisplaymemimage(Memimage*);
 int _latin1(Rune*, int);
 int parsewinsize(char*, Rectangle*, int*);
-int mouseswap(int);
+NSUInteger mouseswap(NSUInteger);
 void abortcompose(void);
 
 
