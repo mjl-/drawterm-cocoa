@@ -1,3 +1,4 @@
+typedef struct Cursor Cursor;
 struct	Cursor
 {
 	Point	offset;

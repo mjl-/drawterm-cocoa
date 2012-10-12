@@ -253,7 +253,7 @@ enum
 	Winstyle = NSTitledWindowMask
 		| NSClosableWindowMask
 		| NSMiniaturizableWindowMask
-		| NSResizableWindowMask
+//		| NSResizableWindowMask
 };
 
 static void
