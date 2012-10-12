@@ -93,6 +93,7 @@ static void acceptresizing(int);
 static NSCursor* makecursor(Cursor*);
 
 void _flushmemscreen(Rectangle r);
+extern void		_drawreplacescreenimage(Memimage*);
 
 @implementation appdelegate
 
@@ -120,6 +121,7 @@ void _flushmemscreen(Rectangle r);
 	in.bigarrow = makecursor(&bigarrow);
 	makeicon();
 	makemenu();
+
 	[NSApplication detachDrawingThread:@selector(callcpumain:)
 							  toTarget:[self class] withObject:nil];
 }
@@ -340,20 +342,15 @@ initimg(void)
 static void
 resizeimg()
 {
-	Memimage *i;
 	Memimage *om;
 
-	LOG(@"resizeimg");
 	[win.img release];
-
-	i = initimg();
-
-//	drawqlock();
 	om = gscreen;
-	gscreen = i;
-	if(om != nil)
-		_freememimage(om);
-//	drawqunlock();
+	gscreen = initimg();
+	_drawreplacescreenimage(gscreen);
+	drawqlock();
+	flushmemscreen(gscreen->r);
+	drawqunlock();
 
 	mouseresized = 1;
 	sendmouse();
@@ -1362,6 +1359,9 @@ screeninit(void)
 	memimageinit();
 	gscreen = initimg();
 	terminit();
+	drawqlock();
+	flushmemscreen(gscreen->r);
+	drawqunlock();
 }
 
 // PAL - no palette handling.  Don't intend to either.
@@ -1384,13 +1384,23 @@ setcolor(ulong index, ulong red, ulong green, ulong blue)
 void
 cursorarrow(void)
 {
+	drawqlock();
 	setcursor0([in.bigarrow retain]);
+	drawqunlock();
 }
 
 void
 mouseset(Point xy)
 {
 #warning mouseset nop
+	/*
+	CGPoint pnt;
+	drawqlock();
+	pnt.x = xy.x;
+	pnt.y = xy.y;
+	CGWarpMouseCursorPosition(pnt);
+	drawqunlock();
+	*/
 }
 
 char*

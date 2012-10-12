@@ -38,7 +38,7 @@ dtmain(int argc, char **argv)
 
 	sizebug();
 
-	osinit();
+//	osinit();
 	procinit0();
 	printinit();
 	screeninit();
