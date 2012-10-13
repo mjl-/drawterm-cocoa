@@ -342,12 +342,15 @@ initimg(void)
 static void
 resizeimg()
 {
+#warning fix resizeimg
+/* fix later
 	Memimage *om;
 
 	[win.img release];
 	om = gscreen;
 	gscreen = initimg();
 	_drawreplacescreenimage(gscreen);
+*/
 	drawqlock();
 	flushmemscreen(gscreen->r);
 	drawqunlock();
