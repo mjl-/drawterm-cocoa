@@ -34,6 +34,8 @@ extern int mousequeue;
 
 #define LOG	if(0)NSLog
 
+int fullscreen = 0;		/* for -f options */
+
 int usegestures = 0;
 int useliveresizing = 0;
 int useoldfullscreen = 0;
@@ -102,9 +104,16 @@ extern void		_drawreplacescreenimage(Memimage*);
 + (void)callcpumain:(id)arg
 {
 	NSProcessInfo *pinfo;
+	NSArray *enumerator;
+	id obj;
 
 	pinfo = [NSProcessInfo processInfo];
 	[pinfo enableSuddenTermination];
+
+	enumerator = [[pinfo arguments] objectEnumerator];
+	while (obj = [enumerator nextObject])
+		if ([obj isEqual:@"-f"])
+			fullscreen++;
 
 	calldtmain();
 	[NSApp terminate:self];
@@ -267,8 +276,11 @@ makewin(NSSize *s)
 	sr = [[NSScreen mainScreen] frame];
 	r = [[NSScreen mainScreen] visibleFrame];
 
-	if(s != NULL){
-		wr = Rect(0, 0, (int)s->width, (int)s->height);
+	if(s != NULL || fullscreen > 0){
+		if(fullscreen)
+			wr = Rect(0, 0, (int)r.size.width, (int)r.size.height);
+		else
+			wr = Rect(0, 0, (int)s->width, (int)s->height);
 		set = 0;
 	}else{
 		wr = Rect(0, 0, (int)sr.size.width*2/3, (int)sr.size.height*2/3);
