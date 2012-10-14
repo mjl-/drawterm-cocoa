@@ -1,11 +1,22 @@
-# Mac OS X 10.8+ Cocoa version
+# Mac OS X Cocoa version
+#   avaialable for SDK macosx10.7 or macosx10.8
+
+SDK107=-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.7.sdk -mmacosx-version-min=10.7
+
+SDK108=-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk -mmacosx-version-min=10.8
+
+ARCHFLAGS64=-arch x86_64 -m64
+ARCHFLAGS32=-arch i386 -m32
+
+# select your target here by setting 32 or 64 and SDK options
+ASFLAGS=$(ASFLAGS32)
+ARCHFLAGS=$(ARCHFLAGS32)
+SDK=$(SDK108)
+
 PTHREAD=-lpthread	# for Mac
 
-ASFLAGS64=-m64
-ASFLAGS32=-m32
-
 AR=ar
-AS=clang -c $(ASFLAGS64)
+AS=clang -c $(ARCHFLAGS)
 RANLIB=ranlib
 O=o
 OS=posix
@@ -13,27 +24,25 @@ GUI=osx-cocoa
 TARG=drawterm
 AUDIO=none
 
-ARCHFLAGS64=-arch x86_64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk -mmacosx-version-min=10.8
-
-ARCHFLAGS=-arch i386 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk -mmacosx-version-min=10.8 -m32
-
 WARNINGS=-Wshorten-64-to-32
 
 CC=clang
-CFLAGS=$(WARNINGS) $(ARCHFLAGS64) -fwritable-strings -g -O0 -I. -I$(ROOT) -I$(ROOT)/include -I$(ROOT)/kern -c -D_THREAD_SAFE -DPTHREAD
-
+CFLAGS=$(WARNINGS) $(ARCHFLAGS) $(SDK) -fwritable-strings -g -O0 -I. -I$(ROOT) -I$(ROOT)/include -I$(ROOT)/kern -c -D_THREAD_SAFE -DPTHREAD
 
 LDADD=-g
-# -Wl,-why_load
-
-LDFLAGS=$(ARCHFLAGS64) -framework Cocoa $(PTHREAD)
+LDFLAGS=$(ARCHFLAGS) -framework Cocoa $(PTHREAD)
 
 MAINO=
 
 all: default
 
-# should probably be made to build a fat i386 and x86_64 versions
-# arch=386;
+# build a fat archive so we can link no matter how the above flags are set
 libmachdep.a:
-	arch=`uname -m|sed 's/i.86/386/;s/x86_64/amd64/'`; \
-	(cd posix-$$arch && make)
+	arch=386; \
+	(cd posix-$$arch && make "ASFLAGS=$(ASFLAGS32)" "ARCHFLAGS=$(ARCHFLAGS32)")
+	mv libmachdep.a libmachdep-386.a
+	arch=amd64; \
+	(cd posix-$$arch && make "ASFLAGS=$(ASFLAGS64)" "ARCHFLAGS=$(ARCHFLAGS64)")
+	mv libmachdep.a libmachdep-amd64.a
+	lipo -create -arch i386 libmachdep-386.a -arch x86_64 libmachdep-amd64.a -output libmachdep.a
+
