@@ -19,7 +19,9 @@
 #define timeradd	xtimeradd
 
 
+#ifndef nil
 #define	nil	((void*)0)
+#endif
 
 typedef unsigned char	p9_uchar;
 typedef unsigned int	p9_uint;
@@ -28,6 +30,7 @@ typedef int		p9_long;
 typedef signed char	p9_schar;
 typedef unsigned short	p9_ushort;
 typedef unsigned int	Rune;
+typedef uint16_t	p9_u16int;
 typedef unsigned int	p9_u32int;
 typedef p9_u32int mpdigit;
 
@@ -36,6 +39,7 @@ typedef p9_u32int mpdigit;
 #define uchar	p9_uchar
 #define ushort	p9_ushort
 #define uint	p9_uint
+#define u16int	p9_u16int
 #define u32int	p9_u32int
 
 /* #define long int rather than p9_long so that "unsigned long" is valid */
@@ -94,6 +98,11 @@ extern	char*	utfrrune(char*, long);
 #define	OCEXEC	32	/* or'ed in, close on exec */
 #define	ORCLOSE	64	/* or'ed in, remove on close */
 #define	OEXCL   0x1000	/* or'ed in, exclusive create */
+
+#define	AEXIST	0	/* accessible: exists */
+#define	AEXEC	1	/* execute access */
+#define	AWRITE	2	/* write access */
+#define	AREAD	4	/* read access */
 
 #define	NCONT	0	/* continue after note */
 #define	NDFLT	1	/* terminate after note */

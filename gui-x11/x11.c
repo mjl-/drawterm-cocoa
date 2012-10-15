@@ -12,8 +12,6 @@
 
 #define argv0 "drawterm"
 
-typedef struct Cursor Cursor;
-
 #undef	long
 #define	Font		XFont
 #define	Screen	XScreen

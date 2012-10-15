@@ -24,13 +24,13 @@ GUI=osx-cocoa
 TARG=drawterm
 AUDIO=none
 
-WARNINGS=-Wshorten-64-to-32
+#WARNINGS=-Wshorten-64-to-32
 
 CC=clang
 CFLAGS=$(WARNINGS) $(ARCHFLAGS) $(SDK) -fwritable-strings -g -O0 -I. -I$(ROOT) -I$(ROOT)/include -I$(ROOT)/kern -c -D_THREAD_SAFE -DPTHREAD
 
 LDADD=-g
-LDFLAGS=$(ARCHFLAGS) -framework Cocoa $(PTHREAD)
+LDFLAGS=$(ARCHFLAGS) $(SDK) -framework Cocoa $(PTHREAD)
 
 MAINO=
 
