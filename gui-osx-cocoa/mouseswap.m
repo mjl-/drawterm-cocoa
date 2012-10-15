@@ -1,6 +1,5 @@
 #import <Foundation/NSObjCRuntime.h>
 
-#undef nil
 #include "u.h"
 #include "lib.h"
 

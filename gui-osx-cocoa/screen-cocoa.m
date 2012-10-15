@@ -7,8 +7,6 @@
 #undef Point
 #undef Rect
 
-#undef nil
-
 #include "u.h"
 #include "lib.h"
 #include "kern/dat.h"
@@ -19,7 +17,6 @@
 #include <memdraw.h>
 #include <keyboard.h>
 
-typedef struct Cursor Cursor;
 #include <cursor.h>
 #include "kern/screen.h"
 
@@ -104,7 +101,7 @@ extern void		_drawreplacescreenimage(Memimage*);
 + (void)callcpumain:(id)arg
 {
 	NSProcessInfo *pinfo;
-	NSArray *enumerator;
+	NSEnumerator *enumerator;
 	id obj;
 
 	pinfo = [NSProcessInfo processInfo];
@@ -1187,32 +1184,34 @@ static void
 makemenu(void)
 {
 	NSMenu *m;
-	NSMenuItem *i0,*i1;
+	NSMenuItem *i0, *i1, *i2, *item;
 
 	m = [NSMenu new];
-	i0 = [m addItemWithTitle:@"app" action:NULL keyEquivalent:@""];
-	i1 = [m addItemWithTitle:@"help" action:NULL keyEquivalent:@""];
+	i0 = [m addItemWithTitle:@"app" action:nil keyEquivalent:@""];
+	i1 = [m addItemWithTitle:@"View" action:nil keyEquivalent:@""];
+	i2 = [m addItemWithTitle:@"Window" action:nil keyEquivalent:@""];
 	[NSApp setMainMenu:m];
 	[m release];
 
 	m = [[NSMenu alloc] initWithTitle:@"app"];
-	[m addItemWithTitle:@"Full Screen"
-		action:@selector(calltogglefs:)
-		keyEquivalent:@"f"];
-	[m addItemWithTitle:@"Hide"
-		action:@selector(hide:)
-		keyEquivalent:@"h"];
-	[m addItemWithTitle:@"Quit"
-		action:@selector(terminate:)
-		keyEquivalent:@"q"];
+	[m addItemWithTitle:@"Hide" action:@selector(hide:) keyEquivalent:@"h"];
+	[m addItemWithTitle:@"Quit" action:@selector(terminate:) keyEquivalent:@"q"];
 	[i0 setSubmenu:m];
 	[m release];
 
-	m = [[NSMenu alloc] initWithTitle:@"help"];
-	[m addItemWithTitle:@"Plumb devdraw(1)"
-		action:@selector(plumbmanual:)
-		keyEquivalent:@""];
+	m = [[NSMenu alloc] initWithTitle:@"View"];
+	item = [m addItemWithTitle:@"Enter Full Screen"
+						action:@selector(toggleFullScreen:)
+				 keyEquivalent:@"f"];
+	[item setKeyEquivalentModifierMask:(NSCommandKeyMask | NSControlKeyMask)];
 	[i1 setSubmenu:m];
+	[m release];
+
+	m = [[NSMenu alloc] initWithTitle:@"Window"];
+	item = [m addItemWithTitle:@"Minimize"
+						action:@selector(miniaturize:)
+				 keyEquivalent:@"m"];
+	[i2 setSubmenu:m];
 	[m release];
 }
 
