@@ -34,8 +34,6 @@ extern int mousequeue;
 
 #define LOG	if(1)NSLog
 
-int fullscreen = 0;		/* for -f options */
-
 int usegestures = 0;
 int useliveresizing = 0;
 int useoldfullscreen = 0;
@@ -102,16 +100,9 @@ void _flushmemscreen(Rectangle r);
 + (void)callcpumain:(id)arg
 {
 	NSProcessInfo *pinfo;
-	NSEnumerator *enumerator;
-	id obj;
 
 	pinfo = [NSProcessInfo processInfo];
 	[pinfo enableSuddenTermination];
-
-	enumerator = [[pinfo arguments] objectEnumerator];
-	while (obj = [enumerator nextObject])
-		if ([obj isEqual:@"-f"])
-			fullscreen++;
 
 	calldtmain();
 	[NSApp terminate:self];
@@ -282,11 +273,8 @@ makewin(NSSize *s)
 	sr = [[NSScreen mainScreen] frame];
 	r = [[NSScreen mainScreen] visibleFrame];
 
-	if(s != NULL || fullscreen > 0){
-		if(fullscreen)
-			wr = Rect(0, 0, (int)sr.size.width, (int)sr.size.height);
-		else
-			wr = Rect(0, 0, (int)s->width, (int)s->height);
+	if(s != NULL){
+		wr = Rect(0, 0, (int)s->width, (int)s->height);
 		set = 0;
 	}else{
 		wr = Rect(0, 0, (int)sr.size.width*2/3, (int)sr.size.height*2/3);
