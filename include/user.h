@@ -80,7 +80,6 @@ extern	int	getpid(void);
 extern	void	panic(char*, ...);
 extern	void	sleep(int);
 extern	void	osyield(void);
-extern	void	setmalloctag(void*, uintptr);
 extern	int	errstr(char*, uint);
 extern	int	rerrstr(char*, uint);
 extern	int	encrypt(void*, void*, int);
@@ -91,3 +90,4 @@ extern	vlong	nsec(void);
 extern	void	lock(Lock*);
 extern	void	unlock(Lock*);
 extern	int	iprint(char*, ...);
+

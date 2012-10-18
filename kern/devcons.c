@@ -1,5 +1,6 @@
 #include	"u.h"
 #include	"lib.h"
+#include 	"mem.h"
 #include	"dat.h"
 #include	"fns.h"
 #include	"error.h"
@@ -353,7 +354,7 @@ echo(char *buf, int n)
 			scheddump();
 			return;
 		case 'k':
-			killbig();
+			killbig("^t ^t k");
 			return;
 		case 'r':
 			exit(0);

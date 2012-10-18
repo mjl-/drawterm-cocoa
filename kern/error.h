@@ -1,6 +1,7 @@
 extern char Enoerror[];		/* no error */
 extern char Emount[];		/* inconsistent mount */
 extern char Eunmount[];		/* not mounted */
+extern char Eismtpt[];		/* is a mount point */
 extern char Eunion[];		/* not in union */
 extern char Emountrpc[];	/* mount rpc error */
 extern char Eshutdown[];	/* device shut down */
@@ -40,7 +41,7 @@ extern char Enoswap[];		/* swap space full */
 extern char Esoverlap[];	/* segments overlap */
 extern char Emouseset[];	/* mouse type already set */
 extern char Eshort[];		/* i/o count too small */
-extern char Egreg[];		/* ken has left the building */
+extern char Egreg[];		/* jmk added reentrancy for threads */
 extern char Ebadspec[];		/* bad attach specifier */
 extern char Enoreg[];		/* process has no saved registers */
 extern char Enoattach[];	/* mount/attach disallowed */
@@ -48,3 +49,5 @@ extern char Eshortstat[];	/* stat buffer too small */
 extern char Ebadstat[];		/* malformed stat buffer */
 extern char Enegoff[];		/* negative i/o offset */
 extern char Ecmdargs[];		/* wrong #args in control message */
+extern char Ebadip[];		/* bad ip address syntax */
+extern char Edirseek[];		/* seek in directory */

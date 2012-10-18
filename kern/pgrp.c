@@ -1,5 +1,6 @@
 #include	"u.h"
 #include	"lib.h"
+#include 	"mem.h"
 #include	"dat.h"
 #include	"fns.h"
 #include	"error.h"
@@ -181,8 +182,9 @@ dupfgrp(Fgrp *f)
 	if(i != 0)
 		new->nfd += DELTAFD - i;
 	new->fd = malloc(new->nfd*sizeof(Chan*));
-	if(new->fd == 0){
+	if(new->fd == nil){
 		unlock(&f->ref.lk);
+		free(new);
 		error("no memory for fgrp");
 	}
 	new->ref.ref = 1;
@@ -211,9 +213,16 @@ closefgrp(Fgrp *f)
 	if(decref(&f->ref) != 0)
 		return;
 
+	/*
+	 * If we get into trouble, forceclosefgrp
+	 * will bail us out.
+	 */
+//	up->closingfgrp = f;
 	for(i = 0; i <= f->maxfd; i++)
-		if((c = f->fd[i]))
+		if((c = f->fd[i])){
+			f->fd[i] = nil;
 			cclose(c);
+		}
 
 	free(f->fd);
 	free(f);
@@ -255,7 +264,9 @@ mountfree(Mount *m)
 void
 resrcwait(char *reason)
 {
+	ulong now;
 	char *p;
+	static ulong lastwhine;
 
 	if(up == 0)
 		panic("resrcwait");
@@ -263,7 +274,12 @@ resrcwait(char *reason)
 	p = up->psstate;
 	if(reason) {
 		up->psstate = reason;
-		print("%s\n", reason);
+		now = seconds();
+		/* don't tie up the console with complaints */
+		if(now - lastwhine > Whinesecs) {
+			lastwhine = now;
+			print("%s\n", reason);
+		}
 	}
 
 	tsleep(&up->sleep, return0, 0, 300);

@@ -1,6 +1,7 @@
 #include	"u.h"
 #include <errno.h>
 #include	"lib.h"
+#include 	"mem.h"
 #include	"dat.h"
 #include	"fns.h"
 #include	"error.h"
@@ -16,7 +17,7 @@ lfdchan(int fd)
 	c = newchan();
 	c->type = devno('L', 0);
 	c->aux = (void*)(uintptr)fd;
-	c->name = newcname("fd");
+	c->path = newpath("fd");
 	c->mode = ORDWR;
 	c->qid.type = 0;
 	c->qid.path = 0;

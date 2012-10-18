@@ -19,6 +19,7 @@ typedef struct Evalue	Evalue;
 typedef struct Fgrp	Fgrp;
 typedef struct FPsave	FPsave;
 typedef struct DevConf	DevConf;
+typedef struct Image	Image;
 typedef struct Label	Label;
 typedef struct List	List;
 typedef struct Log	Log;
@@ -31,6 +32,7 @@ typedef struct Mnt	Mnt;
 typedef struct Mhead	Mhead;
 typedef struct Note	Note;
 typedef struct Page	Page;
+typedef struct Path	Path;
 typedef struct Palloc	Palloc;
 typedef struct Perf	Perf;
 typedef struct Pgrps	Pgrps;
@@ -47,14 +49,17 @@ typedef struct Rgrp	Rgrp;
 typedef struct RWlock	RWlock;
 typedef struct Schedq	Schedq;
 typedef struct Segment	Segment;
+typedef struct Sema	Sema;
 typedef struct Session	Session;
 typedef struct Task	Task;
 typedef struct Talarm	Talarm;
 typedef struct Timer	Timer;
 typedef struct Uart	Uart;
+typedef vlong		Tval;
 typedef struct Ureg Ureg;
 typedef struct Waitq	Waitq;
 typedef struct Walkqid	Walkqid;
+typedef struct Watchdog	Watchdog;
 typedef int    Devgen(Chan*, char*, Dirtab*, int, int, Dir*);
 
 #include "fcall.h"
@@ -174,37 +179,46 @@ struct Chan
 	Ref ref;
 	Chan*	next;			/* allocation */
 	Chan*	link;
-	vlong	offset;			/* in file */
+	vlong	offset;			/* in fd */
+	vlong	devoffset;		/* in underlying device; see read */
 	ushort	type;
 	ulong	dev;
 	ushort	mode;			/* read/write */
 	ushort	flag;
 	Qid	qid;
 	int	fid;			/* for devmnt */
-	ulong	iounit;	/* chunk size for i/o; 0==default */
+	ulong	iounit;			/* chunk size for i/o; 0==default */
 	Mhead*	umh;			/* mount point that derived Chan; used in unionread */
 	Chan*	umc;			/* channel in union; held for union read */
 	QLock	umqlock;		/* serialize unionreads */
 	int	uri;			/* union read index */
 	int	dri;			/* devdirread index */
-	ulong	mountid;
-	Mntcache *mcp;			/* Mount cache pointer */
-	Mnt		*mux;		/* Mnt for clients using me for messages */
-	void*	aux;
-	Qid	pgrpid;		/* for #p/notepg */
-	ulong	mid;		/* for ns in devproc */
+	uchar*	dirrock;		/* directory entry rock for translations */
+	int	nrock;
+	int	mrock;
+	QLock	rockqlock;
+	int	ismtpt;
+	Mntcache*mcp;			/* Mount cache pointer */
+	Mnt*	mux;			/* Mnt for clients using me for messages */
+	union {
+		void*	aux;
+		Qid	pgrpid;		/* for #p/notepg */
+		ulong	mid;		/* for ns in devproc */
+	};
 	Chan*	mchan;			/* channel to mounted server */
 	Qid	mqid;			/* qid of root of mount point */
-	Session*session;
-	Cname	*name;
+	Path*	path;
 };
 
-struct Cname
+struct Path
 {
-	Ref ref;
-	int	alen;			/* allocated length */
-	int	len;			/* strlen(s) */
+	Ref 	ref;
 	char	*s;
+	Chan	**mtpt;			/* mtpt history */
+	int	len;			/* strlen(s) */
+	int	alen;			/* allocated length of s */
+	int	mlen;			/* number of path elements */
+	int	malen;			/* allocated length of mtpt */
 };
 
 struct Dev
@@ -216,7 +230,7 @@ struct Dev
 	void	(*init)(void);
 	void	(*shutdown)(void);
 	Chan*	(*attach)(char*);
-	Walkqid*	(*walk)(Chan*, Chan*, char**, int);
+	Walkqid*(*walk)(Chan*, Chan*, char**, int);
 	int	(*stat)(Chan*, uchar*, int);
 	Chan*	(*open)(Chan*, int);
 	void	(*create)(Chan*, char*, int, ulong);
@@ -228,7 +242,10 @@ struct Dev
 	void	(*remove)(Chan*);
 	int	(*wstat)(Chan*, uchar*, int);
 	void	(*power)(int);	/* power mgt: power(1) => on, power (0) => off */
-	int	(*config)(int, char*, DevConf*);	// returns nil on error
+	int	(*config)(int, char*, DevConf*);	/* returns nil on error */
+
+	/* not initialised */
+	int	attached;				/* debugging */
 };
 
 struct Dirtab
@@ -255,8 +272,7 @@ enum
 
 struct Mntwalk				/* state for /proc/#/ns */
 {
-	int		cddone;
-	ulong	id;
+	int	cddone;
 	Mhead*	mh;
 	Mount*	cm;
 };
@@ -308,6 +324,132 @@ struct Note
 {
 	char	msg[ERRMAX];
 	int	flag;			/* whether system posted it */
+};
+
+enum
+{
+	PG_NOFLUSH	= 0,
+	PG_TXTFLUSH	= 1,		/* flush dcache and invalidate icache */
+	PG_DATFLUSH	= 2,		/* flush both i & d caches (UNUSED) */
+	PG_NEWCOL	= 3,		/* page has been recolored */
+
+	PG_MOD		= 0x01,		/* software modified bit */
+	PG_REF		= 0x02,		/* software referenced bit */
+};
+
+struct Page
+{
+	Lock 	lk;
+	ulong	pa;			/* Physical address in memory */
+	ulong	va;			/* Virtual address for user */
+	ulong	daddr;			/* Disc address on swap */
+	ulong	gen;			/* Generation counter for swap */
+	ushort	ref;			/* Reference count */
+	char	modref;			/* Simulated modify/reference bits */
+	char	color;			/* Cache coloring */
+	char	cachectl[MAXMACH];	/* Cache flushing control for putmmu */
+	Image	*image;			/* Associated text or swap image */
+	Page	*next;			/* Lru free list */
+	Page	*prev;
+	Page	*hash;			/* Image hash chains */
+};
+
+struct Swapalloc
+{
+	Lock 	lk;				/* Free map lock */
+	int	free;			/* currently free swap pages */
+	uchar*	swmap;			/* Base of swap map in memory */
+	uchar*	alloc;			/* Round robin allocator */
+	uchar*	last;			/* Speed swap allocation */
+	uchar*	top;			/* Top of swap map */
+	Rendez	r;			/* Pager kproc idle sleep */
+	ulong	highwater;		/* Pager start threshold */
+	ulong	headroom;		/* Space pager frees under highwater */
+}swapalloc;
+
+struct Image
+{
+	Ref 	ref;
+	Chan	*c;			/* channel to text file */
+	Qid 	qid;			/* Qid for page cache coherence */
+	Qid	mqid;
+	Chan	*mchan;
+	ushort	type;			/* Device type of owning channel */
+	Segment *s;			/* TEXT segment for image if running */
+	Image	*hash;			/* Qid hash chains */
+	Image	*next;			/* Free list */
+	int	notext;			/* no file associated */
+};
+
+struct Pte
+{
+	Page	*pages[PTEPERTAB];	/* Page map for this chunk of pte */
+	Page	**first;		/* First used entry */
+	Page	**last;			/* Last used entry */
+};
+
+/* Segment types */
+enum
+{
+	SG_TYPE		= 07,		/* Mask type of segment */
+	SG_TEXT		= 00,
+	SG_DATA		= 01,
+	SG_BSS		= 02,
+	SG_STACK	= 03,
+	SG_SHARED	= 04,
+	SG_PHYSICAL	= 05,
+
+	SG_RONLY	= 0040,		/* Segment is read only */
+	SG_CEXEC	= 0100,		/* Detach at exec */
+};
+
+#define PG_ONSWAP	1
+#define onswap(s)	(((ulong)s)&PG_ONSWAP)
+#define pagedout(s)	(((ulong)s)==0 || onswap(s))
+#define swapaddr(s)	(((ulong)s)&~PG_ONSWAP)
+
+#define SEGMAXSIZE	(SEGMAPSIZE*PTEMAPMEM)
+
+struct Physseg
+{
+	ulong	attr;			/* Segment attributes */
+	char	*name;			/* Attach name */
+	ulong	pa;			/* Physical address */
+	ulong	size;			/* Maximum segment size in pages */
+	Page	*(*pgalloc)(Segment*, ulong);	/* Allocation if we need it */
+	void	(*pgfree)(Page*);
+};
+
+struct Sema
+{
+	Rendez 	r;
+	long	*addr;
+	int	waiting;
+	Sema	*next;
+	Sema	*prev;
+};
+
+struct Segment
+{
+	Ref 	ref;
+	QLock	lk;
+	ushort	steal;		/* Page stealer lock */
+	ushort	type;		/* segment type */
+	ulong	base;		/* virtual base */
+	ulong	top;		/* virtual top */
+	ulong	size;		/* size in pages */
+	ulong	fstart;		/* start address in file for demand load */
+	ulong	flen;		/* length of segment in file */
+	int	flushme;	/* maintain icache for this segment */
+	Image	*image;		/* text in file attached to this segment */
+	Physseg *pseg;
+	ulong*	profile;	/* Tick profile area */
+	Pte	**map;
+	int	mapsize;
+	Pte	*ssegmap[SSEGMAPSIZE];
+	Lock	semalock;
+	Sema	sema;
+	ulong	mark;		/* portcountrefs */
 };
 
 enum
@@ -452,6 +594,10 @@ extern	int	nsyscall;
 extern	char	*sysname;
 extern	uint	qiomaxatomic;
 extern	Conf	conf;
+
+	Watchdog*watchdog;
+	int	watchdogon;
+
 enum
 {
 	LRESPROF	= 3,

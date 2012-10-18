@@ -3,6 +3,7 @@
  */
 #include	"u.h"
 #include	"lib.h"
+#include 	"mem.h"
 #include	"dat.h"
 #include	"fns.h"
 #include	"error.h"
@@ -72,15 +73,15 @@ struct Dstate
 enum
 {
 	Maxdmsg=	1<<16,
-	Maxdstate=	128,	/* must be a power of 2 */
+	Maxdstate=	512,	/* max. open ssl conn's; must be a power of 2 */
 };
 
-Lock	dslock;
-int	dshiwat;
-char	*dsname[Maxdstate];
-Dstate	*dstate[Maxdstate];
-char	*encalgs;
-char	*hashalgs;
+static	Lock	dslock;
+static	int	dshiwat;
+static	char	*dsname[Maxdstate];
+static	Dstate	*dstate[Maxdstate];
+static	char	*encalgs;
+static	char	*hashalgs;
 
 enum{
 	Qtopdir		= 1,	/* top level directory */
@@ -112,6 +113,18 @@ static Dstate*	dsclone(Chan *c);
 static void	dsnew(Chan *c, Dstate **);
 static long	sslput(Dstate *s, Block * volatile b);
 
+/*
+char *sslnames[] = {
+[Qclonus]	"clone",
+[Qdata]		"data",
+[Qctl]		"ctl",
+[Qsecretin]	"secretin",
+[Qsecretout]	"secretout",
+[Qencalgs]	"encalgs",
+[Qhashalgs]	"hashalgs",
+};
+*/
+
 char *sslnames[] = {
 	/* unused */ 0,
 	/* topdir */ 0,
@@ -125,7 +138,6 @@ char *sslnames[] = {
 	"encalgs",
 	"hashalgs",
 };
-
 static int
 sslgen(Chan *c, char *n, Dirtab *d, int nd, int s, Dir *dp)
 {
@@ -358,7 +370,7 @@ sslwstat(Chan *c, uchar *db, int n)
 
 	if(!emptystr(dir->uid))
 		kstrdup(&s->user, dir->uid);
-	if(dir->mode != ~0)
+	if(dir->mode != ~0UL)
 		s->perm = dir->mode;
 
 	free(dir);
@@ -718,6 +730,7 @@ randfill(uchar *buf, int len)
 {
 	while(len-- > 0)
 		*buf++ = fastrand();
+//		*buf++ = nrand(256);
 }
 
 static long
@@ -766,9 +779,8 @@ sslput(Dstate *s, Block * volatile b)
 	int offset;
 
 	if(waserror()){
-iprint("error: %s\n", up->errstr);
 		if(b != nil)
-			free(b);
+			freeb(b);
 		nexterror();
 	}
 
@@ -901,6 +913,8 @@ initDESkey_40(OneWay *w)
 	}
 
 	w->state = malloc(sizeof(DESstate));
+	if(w->state == nil)
+		error(Enomem);
 	if(w->slen >= 16)
 		setupDESstate(w->state, key, w->secret+8);
 	else if(w->slen >= 8)
@@ -937,6 +951,8 @@ initRC4key_40(OneWay *w)
 		w->slen = 5;
 
 	w->state = malloc(sizeof(RC4state));
+	if(w->state == nil)
+		error(Enomem);
 	setupRC4state(w->state, w->secret, w->slen);
 }
 
@@ -956,6 +972,8 @@ initRC4key_128(OneWay *w)
 		w->slen = 16;
 
 	w->state = malloc(sizeof(RC4state));
+	if(w->state == nil)
+		error(Enomem);
 	setupRC4state(w->state, w->secret, w->slen);
 }
 
@@ -1058,6 +1076,7 @@ sslwrite(Chan *c, void *a, long n, vlong o)
 	uchar *x;
 
 	USED(o);
+	x = nil;
 	s = dstate[CONV(c->qid)];
 	if(s == 0)
 		panic("sslwrite");
@@ -1073,9 +1092,8 @@ sslwrite(Chan *c, void *a, long n, vlong o)
 			nexterror();
 		}
 		qlock(&s->out.q);
+
 		p = a;
-if(0) iprint("write %d %.2ux %.2ux %.2ux %.2ux %.2ux %.2ux %.2ux %.2ux\n",
-	n, p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
 		e = p + n;
 		do {
 			m = e - p;
@@ -1095,9 +1113,7 @@ if(0) iprint("write %d %.2ux %.2ux %.2ux %.2ux %.2ux %.2ux %.2ux %.2ux\n",
 
 			p += m;
 		} while(p < e);
-		p = a;
-if(0) iprint("wrote %d %.2ux %.2ux %.2ux %.2ux %.2ux %.2ux %.2ux %.2ux\n",
-	n, p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
+
 		poperror();
 		qunlock(&s->out.q);
 		return n;
@@ -1136,6 +1152,10 @@ if(0) iprint("wrote %d %.2ux %.2ux %.2ux %.2ux %.2ux %.2ux %.2ux %.2ux\n",
 	if(p)
 		*p++ = 0;
 
+	if(waserror()){
+		free(x);
+		nexterror();
+	}
 	if(strcmp(buf, "fd") == 0){
 		s->c = buftochan(p);
 
@@ -1155,9 +1175,8 @@ if(0) iprint("wrote %d %.2ux %.2ux %.2ux %.2ux %.2ux %.2ux %.2ux %.2ux\n",
 
 		s->state = Sclear;
 		s->maxpad = s->max = (1<<15) - s->diglen - 1;
-		if(strcmp(p, "clear") == 0){
-			goto out;
-		}
+		if(strcmp(p, "clear") == 0)
+			goto outx;
 
 		if(s->in.secret && s->out.secret == 0)
 			setsecret(&s->out, s->in.secret, s->in.slen);
@@ -1198,17 +1217,21 @@ if(0) iprint("wrote %d %.2ux %.2ux %.2ux %.2ux %.2ux %.2ux %.2ux %.2ux\n",
 		m = (strlen(p)*3)/2;
 		x = smalloc(m);
 		t = dec64(x, m, p, strlen(p));
+		if(t <= 0)
+			error(Ebadarg);
 		setsecret(&s->in, x, t);
-		free(x);
 	} else if(strcmp(buf, "secretout") == 0 && p != 0) {
 		m = (strlen(p)*3)/2 + 1;
 		x = smalloc(m);
 		t = dec64(x, m, p, strlen(p));
+		if(t <= 0)
+			error(Ebadarg);
 		setsecret(&s->out, x, t);
-		free(x);
 	} else
 		error(Ebadarg);
-
+outx:
+	free(x);
+	poperror();
 out:
 	qunlock(&s->in.ctlq);
 	qunlock(&s->out.q);

@@ -1,11 +1,15 @@
 #include	"u.h"
 #include	"lib.h"
+#define Image MImage
+#include 	"mem.h"
 #include	"dat.h"
 #include	"fns.h"
 #include	"error.h"
 
+#undef Image
 #include	<draw.h>
 #include	<memdraw.h>
+#include	<cursor.h>
 #include	"screen.h"
 
 #define	MINX	8

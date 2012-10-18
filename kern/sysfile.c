@@ -1,5 +1,6 @@
 #include	"u.h"
 #include	"lib.h"
+#include 	"mem.h"
 #include	"dat.h"
 #include	"fns.h"
 #include	"error.h"
@@ -188,11 +189,7 @@ _sysfd2path(int fd, char *buf, uint nbuf)
 	Chan *c;
 
 	c = fdtochan(fd, -1, 0, 1);
-
-	if(c->name == nil)
-		snprint(buf, nbuf, "<null>");
-	else
-		snprint(buf, nbuf, "%s", c->name->s);
+	snprint(buf, nbuf, "%s", chanpath(c));
 	cclose(c);
 	return 0;
 }

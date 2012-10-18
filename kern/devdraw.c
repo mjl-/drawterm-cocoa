@@ -1,5 +1,6 @@
 #include	"u.h"
 #include	"lib.h"
+#include 	"mem.h"
 #include	"dat.h"
 #include	"fns.h"
 #include	"error.h"
@@ -15,6 +16,7 @@ enum
 {
 	Qtopdir		= 0,
 	Qnew,
+	Qwinname,
 	Q3rd,
 	Q2nd,
 	Qcolormap,
@@ -36,7 +38,7 @@ enum
 
 #define	NHASH		(1<<5)
 #define	HASHMASK	(NHASH-1)
-#define	IOUNIT	(64*1024)
+#define	IOUNIT		(64*1024)
 
 typedef struct Client Client;
 typedef struct Draw Draw;
@@ -52,12 +54,11 @@ ulong blanktime = 30;	/* in minutes; a half hour */
 
 struct Draw
 {
-	QLock	lk;
 	int		clientid;
 	int		nclient;
 	Client**	client;
 	int		nname;
-	DName*	name;
+	DName*		name;
 	int		vers;
 	int		softscreen;
 	int		blanked;	/* screen turned off */
@@ -97,10 +98,10 @@ struct Refx
 
 struct DName
 {
-	char			*name;
-	Client	*client;
+	char		*name;
+	Client		*client;
 	DImage*		dimage;
-	int			vers;
+	int		vers;
 };
 
 struct FChar
@@ -130,7 +131,7 @@ struct DImage
 	int		nfchar;
 	FChar*		fchar;
 	DScreen*	dscreen;	/* 0 if not a window */
-	DImage*	fromname;	/* image this one is derived from, by name */
+	DImage*		fromname;	/* image this one is derived from, by name */
 	DImage*		next;
 };
 
@@ -145,16 +146,21 @@ struct DScreen
 	int		id;
 	int		public;
 	int		ref;
-	DImage	*dimage;
-	DImage	*dfill;
+	DImage		*dimage;
+	DImage		*dfill;
 	Memscreen*	screen;
 	Client*		owner;
 	DScreen*	next;
 };
 
 static	Draw		sdraw;
+	QLock	drawlock;
+
 static	Memimage	*screenimage;
-static	Memdata	screendata;
+static	DImage*	screendimage;
+static	char	screenname[40];
+static	int	screennameid;
+
 static	Rectangle	flushrect;
 static	int		waste;
 static	DScreen*	dscreen;
@@ -163,6 +169,7 @@ extern	void		flushmemscreen(Rectangle);
 	void		drawuninstall(Client*, int);
 	void		drawfreedimage(DImage*);
 	Client*		drawclientofpath(ulong);
+	DImage*	allocdimage(Memimage*);
 
 static	char Enodrawimage[] =	"unknown id for draw image";
 static	char Enodrawscreen[] =	"unknown id for draw screen";
@@ -176,29 +183,47 @@ static	char Ewriteoutside[] =	"writeimage outside image";
 static	char Enotfont[] =	"image not a font";
 static	char Eindex[] =		"character index out of range";
 static	char Enoclient[] =	"no such draw client";
-/* static	char Edepth[] =	"image has bad depth"; */
+static	char Edepth[] =		"image has bad depth";
 static	char Enameused[] =	"image name in use";
 static	char Enoname[] =	"no image with that name";
 static	char Eoldname[] =	"named image no longer valid";
 static	char Enamed[] = 	"image already has name";
 static	char Ewrongname[] = 	"wrong name for image";
 
-int
-drawcanqlock(void)
+static void
+dlock(void)
 {
-	return canqlock(&sdraw.lk);
+	qlock(&drawlock);
+}
+
+static int
+candlock(void)
+{
+	return canqlock(&drawlock);
+}
+
+static void
+dunlock(void)
+{
+	qunlock(&drawlock);
 }
 
 void
 drawqlock(void)
 {
-	qlock(&sdraw.lk);
+	dlock();
+}
+
+int
+drawcanqlock(void)
+{
+	return candlock();
 }
 
 void
 drawqunlock(void)
 {
-	qunlock(&sdraw.lk);
+	dunlock();
 }
 
 static int
@@ -246,6 +271,10 @@ drawgen(Chan *c, char *name, Dirtab *dt, int ndt, int s, Dir *dp)
 		case 0:
 			mkqid(&q, Q2nd, 0, QTDIR);
 			devdir(c, q, "draw", 0, eve, 0555, dp);
+			break;
+		case 1:
+			mkqid(&q, Qwinname, 0, 0);
+			devdir(c, q, "winname", 0, eve, 0444, dp);
 			break;
 		default:
 			return -1;
@@ -312,33 +341,6 @@ drawrefactive(void *a)
 
 	c = a;
 	return c->refreshme || c->refresh!=0;
-}
-
-void
-_drawreplacescreenimage(Memimage *m)
-{
-	/*
-	 * Replace the screen image because the screen
-	 * was resized.
-	 * 
-	 * In theory there should only be one reference
-	 * to the current screen image, and that's through
-	 * client0's image 0, installed a few lines above.
-	 * Once the client drops the image, the underlying backing 
-	 * store freed properly.  The client is being notified
-	 * about the resize through external means, so all we
-	 * need to do is this assignment.
-	 */
-	Memimage *om;
-
-	qlock(&sdraw.lk);
-	om = screenimage;
-	screenimage = m;
-//	m->screenref = 1;
-//	if(om && --om->screenref == 0){
-		_freememimage(om);
-//	}
-	qunlock(&sdraw.lk);
 }
 
 static
@@ -463,9 +465,9 @@ drawflush(void)
 void
 drawflushr(Rectangle r)
 {
-	qlock(&sdraw.lk);
+	qlock(&drawlock);
 	flushmemscreen(r);
-	qunlock(&sdraw.lk);
+	qunlock(&drawlock);
 }
 
 static
@@ -556,15 +558,14 @@ drawlookupscreen(Client *client, int id, CScreen **cs)
 	return 0;
 }
 
-Memimage*
-drawinstall(Client *client, int id, Memimage *i, DScreen *dscreen)
+DImage*
+allocdimage(Memimage *i)
 {
 	DImage *d;
 
 	d = malloc(sizeof(DImage));
 	if(d == 0)
 		return 0;
-	d->id = id;
 	d->ref = 1;
 	d->name = 0;
 	d->vers = 0;
@@ -572,6 +573,18 @@ drawinstall(Client *client, int id, Memimage *i, DScreen *dscreen)
 	d->nfchar = 0;
 	d->fchar = 0;
 	d->fromname = 0;
+	return d;
+}
+
+Memimage*
+drawinstall(Client *client, int id, Memimage *i, DScreen *dscreen)
+{
+	DImage *d;
+
+	d = allocdimage(i);
+	if(d == 0)
+		return 0;
+	d->id = id;
 	d->dscreen = dscreen;
 	d->next = client->dimage[id&HASHMASK];
 	client->dimage[id&HASHMASK] = d;
@@ -695,8 +708,8 @@ drawfreedimage(DImage *dimage)
 		drawfreedimage(dimage->fromname);
 		goto Return;
 	}
-	if(dimage->image == screenimage)	/* don't free the display */
-		goto Return;
+//	if(dimage->image == screenimage)	/* don't free the display */
+//		goto Return;
 	ds = dimage->dscreen;
 	if(ds){
 		l = dimage->image;
@@ -894,12 +907,8 @@ drawpoint(Point *p, uchar *a)
 	p->y = BGLONG(a+1*4);
 }
 
-#define isvgascreen(dst) 1
-
-
 Point
-drawchar(Memimage *dst, Memimage *rdst, Point p, 
-	Memimage *src, Point *sp, DImage *font, int index, int op)
+drawchar(Memimage *dst, Memimage *rdst, Point p, Memimage *src, Point *sp, DImage *font, int index, int op)
 {
 	FChar *fc;
 	Rectangle r;
@@ -913,7 +922,7 @@ drawchar(Memimage *dst, Memimage *rdst, Point p,
 	r.max.y = r.min.y+(fc->maxy-fc->miny);
 	sp1.x = sp->x+fc->left;
 	sp1.y = sp->y+fc->miny;
-	
+
 	/*
 	 * If we're drawing greyscale fonts onto a VGA screen,
 	 * it's very costly to read the screen memory to do the
@@ -922,7 +931,7 @@ drawchar(Memimage *dst, Memimage *rdst, Point p,
 	 * refer to for the underlying dst pixels instead of reading dst
 	 * directly.
 	 */
-	if(1 || (isvgascreen(dst) && !isvgascreen(rdst) /*&& font->image->depth > 1*/)){
+	if(ishwimage(dst) && !ishwimage(rdst) && font->image->depth > 1){
 		if(tmp == nil || tmp->chan != dst->chan || Dx(tmp->r) < Dx(r) || Dy(tmp->r) < Dy(r)){
 			if(tmp)
 				freememimage(tmp);
@@ -943,61 +952,103 @@ drawchar(Memimage *dst, Memimage *rdst, Point p,
 	return p;
 }
 
-static int
-initscreenimage(void)
+static DImage*
+makescreenimage(void)
 {
 	int width, depth;
 	ulong chan;
-	void *X;
+	DImage *di;
+	Memdata *md;
+	Memimage *i;
 	Rectangle r;
 
+	md = malloc(sizeof *md);
+	if(md == nil)
+		return nil;
+	md->allocd = 1;
+	md->base = nil;
+	md->bdata = attachscreen(&r, &chan, &depth, &width, &sdraw.softscreen);
+	if(md->bdata == nil){
+		free(md);
+		return nil;
+	}
+	md->ref = 1;
+	i = allocmemimaged(r, chan, md);
+	if(i == nil){
+		free(md);
+		return nil;
+	}
+	i->width = width;
+	i->clipr = r;
+
+	di = allocdimage(i);
+	if(di == nil){
+		freememimage(i);	/* frees md */
+		return nil;
+	}
+	if(!waserror()){
+		snprint(screenname, sizeof screenname, "noborder.screen.%d", ++screennameid);
+		drawaddname(nil, di, strlen(screenname), screenname);
+		poperror();
+	}
+	return di;
+}
+
+static int
+initscreenimage(void)
+{
 	if(screenimage != nil)
 		return 1;
 
-	screendata.base = nil;
-	screendata.bdata = attachscreen(&r, &chan, &depth, &width, &sdraw.softscreen, &X);
-	if(screendata.bdata == nil && X == nil)
+	screendimage = makescreenimage();
+	if(screendimage == nil)
 		return 0;
-	screendata.ref = 1;
-
-	screenimage = allocmemimaged(r, chan, &screendata, X);
-	if(screenimage == nil){
-		/* RSC: BUG: detach screen */
-		return 0;
-	}
-
-	screenimage->width = width;
-	screenimage->clipr = r;
+	screenimage = screendimage->image;
+// iprint("initscreenimage %p %p\n", screendimage, screenimage);
+	mouseresize();
 	return 1;
 }
 
 void
 deletescreenimage(void)
 {
-	qlock(&sdraw.lk);
-	/* RSC: BUG: detach screen */
-	if(screenimage)
-		freememimage(screenimage);
-	screenimage = nil;
-	qunlock(&sdraw.lk);
+	dlock();
+	if(screenimage){
+		/* will be freed via screendimage; disable */
+		screenimage->clipr = ZR;
+		screenimage = nil;
+	}
+	if(screendimage){
+		drawfreedimage(screendimage);
+		screendimage = nil;
+	}
+	dunlock();
+}
+
+void
+resetscreenimage(void)
+{
+	dlock();
+	initscreenimage();
+	dunlock();
 }
 
 static Chan*
 drawattach(char *spec)
 {
-	qlock(&sdraw.lk);
+	dlock();
 	if(!initscreenimage()){
-		qunlock(&sdraw.lk);
+		dunlock();
 		error("no frame buffer");
 	}
-	qunlock(&sdraw.lk);
+	dunlock();
 	return devattach('i', spec);
 }
 
 static Walkqid*
 drawwalk(Chan *c, Chan *nc, char **name, int nname)
 {
-	if(screendata.bdata == nil)
+	if(screenimage == nil)
 		error("no frame buffer");
 	return devwalk(c, nc, name, nname, 0, 0, drawgen);
 }
@@ -1012,15 +1063,17 @@ static Chan*
 drawopen(Chan *c, int omode)
 {
 	Client *cl;
+	DName *dn;
+	DImage *di;
 
 	if(c->qid.type & QTDIR){
 		c = devopen(c, omode, 0, 0, drawgen);
 		c->iounit = IOUNIT;
 	}
 
-	qlock(&sdraw.lk);
+	dlock();
 	if(waserror()){
-		qunlock(&sdraw.lk);
+		dunlock();
 		nexterror();
 	}
 
@@ -1032,6 +1085,9 @@ drawopen(Chan *c, int omode)
 	}
 
 	switch(QID(c->qid)){
+	case Qwinname:
+		break;
+
 	case Qnew:
 		break;
 
@@ -1041,9 +1097,22 @@ drawopen(Chan *c, int omode)
 			error(Einuse);
 		cl->busy = 1;
 		flushrect = Rect(10000, 10000, -10000, -10000);
-		drawinstall(cl, 0, screenimage, 0);
+		dn = drawlookupname(strlen(screenname), screenname);
+		if(dn == 0)
+			error("draw: cannot happen 2");
+		if(drawinstall(cl, 0, dn->dimage->image, 0) == 0)
+			error(Edrawmem);
+		di = drawlookup(cl, 0, 0);
+		if(di == 0)
+			error("draw: cannot happen 1");
+		di->vers = dn->vers;
+		di->name = smalloc(strlen(screenname)+1);
+		strcpy(di->name, screenname);
+		di->fromname = dn->dimage;
+		di->fromname->ref++;
 		incref(&cl->r);
 		break;
+
 	case Qcolormap:
 	case Qdata:
 	case Qrefresh:
@@ -1051,7 +1120,7 @@ drawopen(Chan *c, int omode)
 		incref(&cl->r);
 		break;
 	}
-	qunlock(&sdraw.lk);
+	dunlock();
 	poperror();
 	c->mode = openmode(omode);
 	c->flag |= COPEN;
@@ -1070,9 +1139,9 @@ drawclose(Chan *c)
 
 	if(QID(c->qid) < Qcolormap)	/* Qtopdir, Qnew, Q3rd, Q2nd have no client */
 		return;
-	qlock(&sdraw.lk);
+	dlock();
 	if(waserror()){
-		qunlock(&sdraw.lk);
+		dunlock();
 		nexterror();
 	}
 
@@ -1105,7 +1174,7 @@ drawclose(Chan *c)
 		drawflush();	/* to erase visible, now dead windows */
 		free(cl);
 	}
-	qunlock(&sdraw.lk);
+	dunlock();
 	poperror();
 }
 
@@ -1124,10 +1193,13 @@ drawread(Chan *c, void *a, long n, vlong off)
 
 	if(c->qid.type & QTDIR)
 		return devdirread(c, a, n, 0, 0, drawgen);
+	if(QID(c->qid) == Qwinname)
+		return readstr(off, a, n, screenname);
+
 	cl = drawclient(c);
-	qlock(&sdraw.lk);
+	dlock();
 	if(waserror()){
-		qunlock(&sdraw.lk);
+		dunlock();
 		nexterror();
 	}
 	switch(QID(c->qid)){
@@ -1184,14 +1256,14 @@ drawread(Chan *c, void *a, long n, vlong off)
 		for(;;){
 			if(cl->refreshme || cl->refresh)
 				break;
-			qunlock(&sdraw.lk);
+			dunlock();
 			if(waserror()){
-				qlock(&sdraw.lk);	/* restore lock for waserror() above */
+				dlock();	/* restore lock for waserror() above */
 				nexterror();
 			}
 			sleep(&cl->refrend, drawrefactive, cl);
 			poperror();
-			qlock(&sdraw.lk);
+			dlock();
 		}
 		p = a;
 		while(cl->refresh && n>=5*4){
@@ -1208,8 +1280,9 @@ drawread(Chan *c, void *a, long n, vlong off)
 		}
 		cl->refreshme = 0;
 		n = p-(uchar*)a;
+		break;
 	}
-	qunlock(&sdraw.lk);
+	dunlock();
 	poperror();
 	return n;
 }
@@ -1239,10 +1312,10 @@ drawwrite(Chan *c, void *a, long n, vlong offset)
 	if(c->qid.type & QTDIR)
 		error(Eisdir);
 	cl = drawclient(c);
-	qlock(&sdraw.lk);
+	dlock();
 	if(waserror()){
 		drawwakeall();
-		qunlock(&sdraw.lk);
+		dunlock();
 		nexterror();
 	}
 	switch(QID(c->qid)){
@@ -1296,7 +1369,7 @@ drawwrite(Chan *c, void *a, long n, vlong offset)
 	default:
 		error(Ebadusefd);
 	}
-	qunlock(&sdraw.lk);
+	dunlock();
 	poperror();
 	return n;
 }
@@ -1392,7 +1465,7 @@ drawmesg(Client *client, void *av, int n)
 	ulong value, chan;
 	Rectangle r, clipr;
 	Point p, q, *pp, sp;
-	Memimage *i, *dst, *src, *mask;
+	Memimage *i, *bg, *dst, *src, *mask;
 	Memimage *l, **lp;
 	Memscreen *scrn;
 	DImage *font, *ll, *di, *ddst, *dsrc;
@@ -1438,7 +1511,7 @@ drawmesg(Client *client, void *av, int n)
 				scrn = dscrn->screen;
 				if(repl || chan!=scrn->image->chan)
 					error("image parameters incompatible with screen");
-				reffn = 0;
+				reffn = nil;
 				switch(refresh){
 				case Refbackup:
 					break;
@@ -1521,7 +1594,7 @@ drawmesg(Client *client, void *av, int n)
 			if(ddst == nil)
 				error(Enodrawimage);
 			if(ddst->name)
-				error("can't change repl/clipr of shared image");
+				error("cannot change repl/clipr of shared image");
 			dst = ddst->image;
 			if(a[5])
 				dst->flags |= Frepl;
@@ -1581,9 +1654,9 @@ drawmesg(Client *client, void *av, int n)
 			oy = BGLONG(a+41);
 			op = drawclientop(client);
 			/* high bit indicates arc angles are present */
-			if(ox & (1U<<31)){
+			if(ox & (1<<31)){
 				if((ox & (1<<30)) == 0)
-					ox &= ~(1U<<31);
+					ox &= ~(1<<31);
 				memarc(dst, p, e0, e1, c, src, sp, ox, oy, op);
 			}else
 				memellipse(dst, p, e0, e1, c, src, sp, op);
@@ -1620,12 +1693,12 @@ drawmesg(Client *client, void *av, int n)
 				error(Eshortdraw);
 			dstid = BGLONG(a+1);
 			if(dstid == 0)
-				error("can't use display as font");
+				error("cannot use display as font");
 			font = drawlookup(client, dstid, 1);
 			if(font == 0)
 				error(Enodrawimage);
 			if(font->image->layer)
-				error("can't use window as font");
+				error("cannot use window as font");
 			ni = BGLONG(a+5);
 			if(ni<=0 || ni>4096)
 				error("bad font size (4096 chars max)");
@@ -1726,7 +1799,7 @@ drawmesg(Client *client, void *av, int n)
 				error(Edrawmem);
 			di = drawlookup(client, dstid, 0);
 			if(di == 0)
-				error("draw: can't happen");
+				error("draw: cannot happen");
 			di->vers = dn->vers;
 			di->name = smalloc(j+1);
 			di->fromname = dn->dimage;
@@ -1929,10 +2002,10 @@ drawmesg(Client *client, void *av, int n)
 			clipr = dst->clipr;
 			dst->clipr = r;
 			op = drawclientop(client);
-			l = dst;
+			bg = dst;
 			if(*a == 'x'){
 				/* paint background */
-				l = drawimage(client, a+47);
+				bg = drawimage(client, a+47);
 				drawpoint(&q, a+51);
 				r.min.x = p.x;
 				r.min.y = p.y-font->ascent;
@@ -1948,7 +2021,7 @@ drawmesg(Client *client, void *av, int n)
 					r.max.x += font->fchar[ci].width;
 					u += 2;
 				}
-				memdraw(dst, r, l, q, memopaque, ZP, op);
+				memdraw(dst, r, bg, q, memopaque, ZP, op);
 				u -= 2*ni;
 			}
 			q = p;
@@ -1958,7 +2031,7 @@ drawmesg(Client *client, void *av, int n)
 					dst->clipr = clipr;
 					error(Eindex);
 				}
-				q = drawchar(dst, l, q, src, &sp, font, ci, op);
+				q = drawchar(dst, bg, q, src, &sp, font, ci, op);
 				u += 2;
 			}
 			dst->clipr = clipr;
@@ -2115,15 +2188,17 @@ drawcmap(void)
 void
 drawblankscreen(int blank)
 {
+	return;		/* do nothing for now */
+#if 0
 	int i, nc;
 	ulong *p;
 
 	if(blank == sdraw.blanked)
 		return;
-	if(!canqlock(&sdraw.lk))
+	if(!candlock())
 		return;
-	if(!initscreenimage()){
-		qunlock(&sdraw.lk);
+	if(screenimage == nil){
+		dunlock();
 		return;
 	}
 	p = sdraw.savemap;
@@ -2137,16 +2212,17 @@ drawblankscreen(int blank)
 	if(blank == 0){	/* turn screen on */
 		for(i=0; i<nc; i++, p+=3)
 			setcolor(i, p[0], p[1], p[2]);
-	//	blankscreen(0);
+		blankscreen(0);
 	}else{	/* turn screen off */
-	//	blankscreen(1);
+		blankscreen(1);
 		for(i=0; i<nc; i++, p+=3){
 			getcolor(i, &p[0], &p[1], &p[2]);
 			setcolor(i, 0, 0, 0);
 		}
 	}
 	sdraw.blanked = blank;
-	qunlock(&sdraw.lk);
+	dunlock();
+#endif
 }
 
 /*
@@ -2155,21 +2231,18 @@ drawblankscreen(int blank)
 void
 drawactive(int active)
 {
-/*
 	if(active){
 		drawblankscreen(0);
-		sdraw.blanktime = MACHP(0)->ticks;
+		sdraw.blanktime = ticks();
 	}else{
-		if(blanktime && sdraw.blanktime && TK2SEC(MACHP(0)->ticks - sdraw.blanktime)/60 >= blanktime)
+		#warning fix ticks
+		if(blanktime && sdraw.blanktime && TK2SEC(ticks() - sdraw.blanktime)/60 >= blanktime)
 			drawblankscreen(1);
 	}
-*/
 }
 
 int
 drawidletime(void)
 {
-	return 0;
-/*	return TK2SEC(MACHP(0)->ticks - sdraw.blanktime)/60; */
+	return TK2SEC(ticks() - sdraw.blanktime)/60;
 }
-
