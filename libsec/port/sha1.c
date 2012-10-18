@@ -1,41 +1,20 @@
 #include "os.h"
 #include <libsec.h>
 
-/*
- *  rfc1321 requires that I include this.  The code is new.  The constants
- *  all come from the rfc (hence the copyright).  We trade a table for the
- *  macros in rfc.  The total size is a lot less. -- presotto
- *
- *	Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All
- *	rights reserved.
- *
- *	License to copy and use this software is granted provided that it
- *	is identified as the "RSA Data Security, Inc. MD5 Message-Digest
- *	Algorithm" in all material mentioning or referencing this software
- *	or this function.
- *
- *	License is also granted to make and use derivative works provided
- *	that such works are identified as "derived from the RSA Data
- *	Security, Inc. MD5 Message-Digest Algorithm" in all material
- *	mentioning or referencing the derived work.
- *
- *	RSA Data Security, Inc. makes no representations concerning either
- *	the merchantability of this software or the suitability of this
- *	software forany particular purpose. It is provided "as is"
- *	without express or implied warranty of any kind.
- *	These notices must be retained in any copies of any part of this
- *	documentation and/or software.
- */
-
 static void encode(uchar*, u32int*, ulong);
 
-extern void _md5block(uchar*, ulong, u32int*);
+extern void _sha1block(uchar*, ulong, u32int*);
 
-MD5state*
-md5(uchar *p, ulong len, uchar *digest, MD5state *s)
+/*
+ *  we require len to be a multiple of 64 for all but
+ *  the last call.  There must be room in the input buffer
+ *  to pad.
+ */
+SHA1state*
+sha1(uchar *p, ulong len, uchar *digest, SHA1state *s)
 {
-	u32int x[16];
 	uchar buf[128];
+	u32int x[16];
 	int i;
 	uchar *e;
 
@@ -53,6 +32,7 @@ md5(uchar *p, ulong len, uchar *digest, MD5state *s)
 		s->state[1] = 0xefcdab89;
 		s->state[2] = 0x98badcfe;
 		s->state[3] = 0x10325476;
+		s->state[4] = 0xc3d2e1f0;
 		s->seeded = 1;
 	}
 
@@ -66,7 +46,7 @@ md5(uchar *p, ulong len, uchar *digest, MD5state *s)
 		s->blen += i;
 		p += i;
 		if(s->blen == 64){
-			_md5block(s->buf, s->blen, s->state);
+			_sha1block(s->buf, s->blen, s->state);
 			s->len += s->blen;
 			s->blen = 0;
 		}
@@ -75,7 +55,7 @@ md5(uchar *p, ulong len, uchar *digest, MD5state *s)
 	/* do 64 byte blocks */
 	i = len & ~0x3f;
 	if(i){
-		_md5block(p, i, s->state);
+		_sha1block(p, i, s->state);
 		s->len += i;
 		len -= i;
 		p += i;
@@ -112,23 +92,23 @@ md5(uchar *p, ulong len, uchar *digest, MD5state *s)
 	len += i;
 
 	/* append the count */
-	x[0] = s->len<<3;
-	x[1] = s->len>>29;
+	x[0] = s->len>>29;
+	x[1] = s->len<<3;
 	encode(p+len, x, 8);
 
 	/* digest the last part */
-	_md5block(p, len+8, s->state);
-	s->len += len;
+	_sha1block(p, len+8, s->state);
+	s->len += len+8;
 
 	/* return result and free state */
-	encode(digest, s->state, MD5dlen);
+	encode(digest, s->state, SHA1dlen);
 	if(s->malloced == 1)
 		free(s);
 	return nil;
 }
 
 /*
- *	encodes input (u32int) into output (uchar). Assumes len is
+ *	encodes input (ulong) into output (uchar). Assumes len is
  *	a multiple of 4.
  */
 static void
@@ -139,9 +119,16 @@ encode(uchar *output, u32int *input, ulong len)
 
 	for(e = output + len; output < e;) {
 		x = *input++;
-		*output++ = x;
-		*output++ = x >> 8;
-		*output++ = x >> 16;
 		*output++ = x >> 24;
+		*output++ = x >> 16;
+		*output++ = x >> 8;
+		*output++ = x;
 	}
+}
+
+DigestState*
+hmac_sha1(uchar *p, ulong len, uchar *key, ulong klen, uchar *digest,
+	DigestState *s)
+{
+	return hmac_x(p, len, key, klen, digest, s, sha1, SHA1dlen);
 }
