@@ -2,7 +2,6 @@
 #include <libc.h>
 #include <draw.h>
 #include <memdraw.h>
-#include <memlayer.h>
 
 typedef struct Seg	Seg;
 
@@ -26,7 +25,7 @@ static	int	zcompare(const void*, const void*);
 static	void	xscan(Memimage *dst, Seg **seg, Seg *segtab, int nseg, int wind, Memimage *src, Point sp, int, int, int, int);
 static	void	yscan(Memimage *dst, Seg **seg, Seg *segtab, int nseg, int wind, Memimage *src, Point sp, int, int);
 
-#ifdef NOT
+#if 0
 static void
 fillcolor(Memimage *dst, int left, int right, int y, Memimage *src, Point p)
 {

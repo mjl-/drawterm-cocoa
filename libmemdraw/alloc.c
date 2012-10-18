@@ -23,10 +23,10 @@ memimagemove(void *from, void *to)
 }
 
 Memimage*
-allocmemimaged(Rectangle r, ulong chan, Memdata *md, void *X)
+allocmemimaged(Rectangle r, u32int chan, Memdata *md)
 {
 	int d;
-	ulong l;
+	u32int l;
 	Memimage *i;
 
 	if(Dx(r) <= 0 || Dy(r) <= 0){
@@ -44,9 +44,8 @@ allocmemimaged(Rectangle r, ulong chan, Memdata *md, void *X)
 	if(i == nil)
 		return nil;
 
-	i->X = X;
 	i->data = md;
-	i->zero = sizeof(ulong)*l*r.min.y;
+	i->zero = sizeof(u32int)*l*r.min.y;
 	
 	if(r.min.x >= 0)
 		i->zero += (r.min.x*d)/8;
@@ -67,11 +66,11 @@ allocmemimaged(Rectangle r, ulong chan, Memdata *md, void *X)
 }
 
 Memimage*
-_allocmemimage(Rectangle r, ulong chan)
+allocmemimage(Rectangle r, u32int chan)
 {
 	int d;
-	u32int l, nw;
 	uchar *p;
+	u32int l, nw;
 	Memdata *md;
 	Memimage *i;
 
@@ -104,7 +103,7 @@ _allocmemimage(Rectangle r, ulong chan)
 	md->bdata = p;
 	md->allocd = 1;
 
-	i = allocmemimaged(r, chan, md, nil);
+	i = allocmemimaged(r, chan, md);
 	if(i == nil){
 		poolfree(imagmem, md->base);
 		free(md);
@@ -115,7 +114,7 @@ _allocmemimage(Rectangle r, ulong chan)
 }
 
 void
-_freememimage(Memimage *i)
+freememimage(Memimage *i)
 {
 	if(i == nil)
 		return;
@@ -133,7 +132,7 @@ _freememimage(Memimage *i)
 ulong*
 wordaddr(Memimage *i, Point p)
 {
-	return (ulong*) ((uintptr)byteaddr(i, p) & ~(sizeof(ulong)-1));
+	return (u32int*) ((uintptr)byteaddr(i, p) & ~(sizeof(u32int)-1));
 }
 
 uchar*
@@ -141,7 +140,7 @@ byteaddr(Memimage *i, Point p)
 {
 	uchar *a;
 
-	a = i->data->bdata+i->zero+sizeof(ulong)*p.y*i->width;
+	a = i->data->bdata+i->zero+sizeof(u32int)*p.y*i->width;
 
 	if(i->depth < 8){
 		/*
@@ -160,11 +159,11 @@ byteaddr(Memimage *i, Point p)
 }
 
 int
-memsetchan(Memimage *i, ulong chan)
+memsetchan(Memimage *i, u32int chan)
 {
 	int d;
 	int t, j, k;
-	ulong cc;
+	u32int cc;
 	int bytes;
 
 	if((d = chantodepth(chan)) == 0) {

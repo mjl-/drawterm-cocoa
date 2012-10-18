@@ -4,7 +4,7 @@
 #include <memdraw.h>
 
 int
-_cloadmemimage(Memimage *i, Rectangle r, uchar *data, int ndata)
+cloadmemimage(Memimage *i, Rectangle r, uchar *data, int ndata)
 {
 	int y, bpl, c, cnt, offs;
 	uchar mem[NMEM], *memp, *omemp, *emem, *linep, *elinep, *u, *eu;

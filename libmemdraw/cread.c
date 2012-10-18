@@ -11,7 +11,7 @@ creadmemimage(int fd)
 	int m, nb, miny, maxy, new, ldepth, ncblock;
 	uchar *buf;
 	Memimage *i;
-	ulong chan;
+	u32int chan;
 
 	if(readn(fd, hdr, 5*12) != 5*12){
 		werrstr("readmemimage: short header (2)");

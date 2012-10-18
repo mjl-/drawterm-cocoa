@@ -2,7 +2,6 @@
 #include <libc.h>
 #include <draw.h>
 #include <memdraw.h>
-#include <memlayer.h>
 
 /*
  * ellipse(dst, c, a, b, t, src, sp)
@@ -124,7 +123,7 @@ memellipse(Memimage *dst, Point c, int a, int b, int t, Memimage *src, Point sp,
 	p.op = op;
 
 	u = (t<<1)*(a-b);
-	if((b<a && u>b*b) || (a<b && -u>a*a)) {
+	if(b<a && u>b*b || a<b && -u>a*a) {
 /*	if(b<a&&(t<<1)>b*b/a || a<b&&(t<<1)>a*a/b)	# very thick */
 		bellipse(b, newstate(&in, a, b), &p);
 		return;

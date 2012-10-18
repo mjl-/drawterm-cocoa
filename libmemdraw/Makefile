@@ -13,6 +13,7 @@ OFILES=\
 	ellipse.$O\
 	fillpoly.$O\
 	hwdraw.$O\
+	iprint.$O\
 	line.$O\
 	load.$O\
 	openmemsubfont.$O\
