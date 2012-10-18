@@ -5,6 +5,15 @@
 #define wakeup	kwakeup
 #define strtod		fmtstrtod
 
+/*
+ * one-of-a-kind
+ */
+enum
+{
+	PNPROC		= 1,
+	PNGROUP		= 2,
+};
+
 /* conflicts on some os's */
 #define encrypt	libencrypt
 #define decrypt libdecrypt
@@ -23,16 +32,18 @@
 #define	nil	((void*)0)
 #endif
 
+typedef unsigned long long uvlong;
+
 typedef unsigned char	p9_uchar;
 typedef unsigned int	p9_uint;
 typedef unsigned int	p9_ulong;
 typedef int		p9_long;
 typedef signed char	p9_schar;
 typedef unsigned short	p9_ushort;
-typedef unsigned int	Rune;
-typedef uint16_t	p9_u16int;
+typedef uint16_t 		p9_u16int;
 typedef unsigned int	p9_u32int;
 typedef p9_u32int mpdigit;
+typedef uvlong 	p9_u64int;
 
 /* make sure we don't conflict with predefined types */
 #define schar	p9_schar
@@ -41,6 +52,7 @@ typedef p9_u32int mpdigit;
 #define uint	p9_uint
 #define u16int	p9_u16int
 #define u32int	p9_u32int
+#define u64int	p9_u64int
 
 /* #define long int rather than p9_long so that "unsigned long" is valid */
 #define long	int
@@ -52,32 +64,9 @@ typedef p9_u32int mpdigit;
 #define SET(x)		((x)=0)
 #define	USED(x)		if(x);else
 
-enum
-{
-	UTFmax		= 4,		/* maximum bytes per rune */
-	Runesync	= 0x80,		/* cannot represent part of a UTF sequence (<) */
-	Runeself	= 0x80,		/* rune and UTF sequences are the same (<) */
-	Runeerror	= 0xFFFD,	/* decoding error in UTF */
-	Runemax	= 0x10FFFF,		/* 32 bit rune */
-};
+#include <utf.h>
+#include <fmt.h>
 
-/*
- * new rune routines
- */
-extern	int	runetochar(char*, Rune*);
-extern	int	chartorune(Rune*, char*);
-extern	int	runelen(long);
-extern	int	fullrune(char*, int);
-
-extern  int	wstrtoutf(char*, Rune*, int);
-extern  int	wstrutflen(Rune*);
-
-/*
- * rune routines from converted str routines
- */
-extern	long	utflen(char*);
-extern	char*	utfrune(char*, long);
-extern	char*	utfrrune(char*, long);
 
 /*
  * Syscall data structures
@@ -181,79 +170,6 @@ struct Waitmsg
 	char	*msg;
 } Waitmsg;
 
-/*
- * print routines
- */
-typedef struct Fmt	Fmt;
-struct Fmt{
-	uchar	runes;			/* output buffer is runes or chars? */
-	void	*start;			/* of buffer */
-	void	*to;			/* current place in the buffer */
-	void	*stop;			/* end of the buffer; overwritten if flush fails */
-	int	(*flush)(Fmt *);	/* called when to == stop */
-	void	*farg;			/* to make flush a closure */
-	int	nfmt;			/* num chars formatted so far */
-	va_list	args;			/* args passed to dofmt */
-	int	r;			/* % format Rune */
-	int	width;
-	int	prec;
-	ulong	flags;
-};
-
-enum{
-	FmtWidth	= 1,
-	FmtLeft		= FmtWidth << 1,
-	FmtPrec		= FmtLeft << 1,
-	FmtSharp	= FmtPrec << 1,
-	FmtSpace	= FmtSharp << 1,
-	FmtSign		= FmtSpace << 1,
-	FmtZero		= FmtSign << 1,
-	FmtUnsigned	= FmtZero << 1,
-	FmtShort	= FmtUnsigned << 1,
-	FmtLong		= FmtShort << 1,
-	FmtVLong	= FmtLong << 1,
-	FmtComma	= FmtVLong << 1,
-	FmtByte	= FmtComma << 1,
-
-	FmtFlag		= FmtByte << 1,
-	FmtLDouble	= FmtFlag << 1
-};
-
-extern	int	print(char*, ...);
-extern	char*	seprint(char*, char*, char*, ...);
-extern	char*	vseprint(char*, char*, char*, va_list);
-extern	int	snprint(char*, int, char*, ...);
-extern	int	vsnprint(char*, int, char*, va_list);
-extern	char*	smprint(char*, ...);
-extern	char*	vsmprint(char*, va_list);
-extern	int	sprint(char*, char*, ...);
-extern	int	fprint(int, char*, ...);
-extern	int	vfprint(int, char*, va_list);
-
-extern	int	(*doquote)(int);
-extern	int	runesprint(Rune*, char*, ...);
-extern	int	runesnprint(Rune*, int, char*, ...);
-extern	int	runevsnprint(Rune*, int, char*, va_list);
-extern	Rune*	runeseprint(Rune*, Rune*, char*, ...);
-extern	Rune*	runevseprint(Rune*, Rune*, char*, va_list);
-extern	Rune*	runesmprint(char*, ...);
-extern	Rune*	runevsmprint(char*, va_list);
-
-extern       Rune*	runestrchr(Rune*, Rune);
-extern       long	runestrlen(Rune*);
-extern       Rune*	runestrstr(Rune*, Rune*);
-
-extern	int	fmtfdinit(Fmt*, int, char*, int);
-extern	int	fmtfdflush(Fmt*);
-extern	int	fmtstrinit(Fmt*);
-extern	int	fmtinstall(int, int (*)(Fmt*));
-extern	char*	fmtstrflush(Fmt*);
-extern	int	runefmtstrinit(Fmt*);
-extern	Rune*	runefmtstrflush(Fmt*);
-extern	int	encodefmt(Fmt*);
-extern	int	fmtstrcpy(Fmt*, char*);
-extern	int	fmtprint(Fmt*, char*, ...);
-extern	int	fmtvprint(Fmt*, char*, va_list);
 extern	void*	mallocz(ulong, int);
 
 extern	uintptr	getcallerpc(void*);
@@ -266,19 +182,10 @@ extern	int	getfields(char*, char**, int, int, char*);
 extern	char*	utfecpy(char*, char*, char*);
 extern	long	tas(long*);
 extern	void	quotefmtinstall(void);
+
 extern	int	dec64(uchar*, int, char*, int);
 extern	int	enc64(char*, int, uchar*, int);
 extern	int	dec32(uchar*, int, char*, int);
 extern	int	enc32(char*, int, uchar*, int);
 extern	int	enc16(char*, int, uchar*, int);
 void		hnputs(void *p, unsigned short v);
-extern	int	dofmt(Fmt*, char*);
-extern	double	__NaN(void);
-extern	int	__isNaN(double);
-extern	double	strtod(const char*, char**);
-extern	int	utfnlen(char*, long);
-extern	double	__Inf(int);
-extern	int	__isInf(double, int);
-
-extern int (*fmtdoquote)(int);
-
