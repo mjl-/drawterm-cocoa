@@ -17,10 +17,13 @@ typedef struct	RGB RGB;
 typedef struct	Screen Screen;
 typedef struct	Subfont Subfont;
 
+#pragma incomplete Mouse
+
 #ifdef VARARGCK
 #pragma varargck	type	"R"	Rectangle
 #pragma varargck	type	"P"	Point
 #endif
+
 extern	int	Rfmt(Fmt*);
 extern	int	Pfmt(Fmt*);
 
@@ -140,16 +143,17 @@ enum {
 	RGB15	= CHAN4(CIgnore, 1, CRed, 5, CGreen, 5, CBlue, 5),
 	RGB16	= CHAN3(CRed, 5, CGreen, 6, CBlue, 5),
 	RGB24	= CHAN3(CRed, 8, CGreen, 8, CBlue, 8),
-	BGR24	= CHAN3(CBlue, 8, CGreen, 8, CRed, 8),
 	RGBA32	= CHAN4(CRed, 8, CGreen, 8, CBlue, 8, CAlpha, 8),
 	ARGB32	= CHAN4(CAlpha, 8, CRed, 8, CGreen, 8, CBlue, 8),	/* stupid VGAs */
-	XRGB32  = CHAN4(CIgnore, 8, CRed, 8, CGreen, 8, CBlue, 8),
-	XBGR32  = CHAN4(CIgnore, 8, CBlue, 8, CGreen, 8, CRed, 8),
+	XRGB32	= CHAN4(CIgnore, 8, CRed, 8, CGreen, 8, CBlue, 8),
+	BGR24	= CHAN3(CBlue, 8, CGreen, 8, CRed, 8),
+	ABGR32	= CHAN4(CAlpha, 8, CBlue, 8, CGreen, 8, CRed, 8),
+	XBGR32	= CHAN4(CIgnore, 8, CBlue, 8, CGreen, 8, CRed, 8),
 };
 
-extern	char*	chantostr(char*, ulong);
-extern	ulong	strtochan(char*);
-extern	int		chantodepth(ulong);
+extern	char*	chantostr(char*, u32int);
+extern	u32int	strtochan(char*);
+extern	int		chantodepth(u32int);
 
 struct	Point
 {
@@ -175,7 +179,7 @@ struct Screen
 
 struct Display
 {
-	QLock	qlock;
+	QLock		qlock;
 	int		locking;	/*program is using lockdisplay */
 	int		dirno;
 	int		fd;
@@ -187,20 +191,20 @@ struct Display
 	char		*devdir;
 	char		*windir;
 	char		oldlabel[64];
-	ulong		dataqid;
+	u32int		dataqid;
 	Image		*white;
 	Image		*black;
 	Image		*opaque;
 	Image		*transparent;
 	Image		*image;
 	uchar		*buf;
-	int			bufsize;
+	int		bufsize;
 	uchar		*bufp;
 	Font		*defaultfont;
 	Subfont		*defaultsubfont;
 	Image		*windows;
 	Image		*screenimage;
-	int			_isnewdisplay;
+	int		_isnewdisplay;
 };
 
 struct Image
@@ -210,7 +214,7 @@ struct Image
 	Rectangle	r;		/* rectangle in data area, local coords */
 	Rectangle 	clipr;		/* clipping region */
 	int		depth;		/* number of bits per pixel */
-	ulong	chan;
+	u32int		chan;
 	int		repl;		/* flag: data replicates to tile clipr */
 	Screen		*screen;	/* 0 if not a window */
 	Image		*next;	/* next in list of windows */
@@ -218,9 +222,9 @@ struct Image
 
 struct RGB
 {
-	ulong	red;
-	ulong	green;
-	ulong	blue;
+	u32int	red;
+	u32int	green;
+	u32int	blue;
 };
 
 /*
@@ -292,7 +296,7 @@ struct Cacheinfo
 
 struct Cachesubf
 {
-	ulong		age;	/* for replacement */
+	u32int		age;	/* for replacement */
 	Cachefont	*cf;	/* font info that owns us */
 	Subfont		*f;	/* attached subfont */
 };
@@ -305,7 +309,7 @@ struct Font
 	short		ascent;	/* top of image to baseline */
 	short		width;	/* widest so far; used in caching only */	
 	short		nsub;	/* number of subfonts */
-	ulong		age;	/* increasing counter; used for LRU */
+	u32int		age;	/* increasing counter; used for LRU */
 	int		maxdepth;	/* maximum depth of all loaded subfonts */
 	int		ncache;	/* size of cache */
 	int		nsubf;	/* size of subfont list */
@@ -319,10 +323,15 @@ struct Font
 #define	Dy(r)	((r).max.y-(r).min.y)
 
 /*
+ * One of a kind
+ */
+extern int		mousescrollsize(int);
+
+/*
  * Image management
  */
-extern Image*	_allocimage(Image*, Display*, Rectangle, ulong, int, ulong, int, int);
-extern Image*	allocimage(Display*, Rectangle, ulong, int, ulong);
+extern Image*	_allocimage(Image*, Display*, Rectangle, u32int, int, u32int, int, int);
+extern Image*	allocimage(Display*, Rectangle, u32int, int, u32int);
 extern uchar*	bufimage(Display*, int);
 extern int	bytesperline(Rectangle, int);
 extern void	closedisplay(Display*);
@@ -345,25 +354,25 @@ extern int	wordsperline(Rectangle, int);
 extern int	writeimage(int, Image*, int);
 extern Image*	namedimage(Display*, char*);
 extern int	nameimage(Image*, char*, int);
-extern Image* allocimagemix(Display*, ulong, ulong);
+extern Image* allocimagemix(Display*, u32int, u32int);
 
 /*
  * Colors
  */
 extern	void	readcolmap(Display*, RGB*);
 extern	void	writecolmap(Display*, RGB*);
-extern	ulong	setalpha(ulong, uchar);
+extern	u32int	setalpha(u32int, uchar);
 
 /*
  * Windows
  */
 extern Screen*	allocscreen(Image*, Image*, int);
-extern Image*	_allocwindow(Image*, Screen*, Rectangle, int, ulong);
-extern Image*	allocwindow(Screen*, Rectangle, int, ulong);
+extern Image*	_allocwindow(Image*, Screen*, Rectangle, int, u32int);
+extern Image*	allocwindow(Screen*, Rectangle, int, u32int);
 extern void	bottomnwindows(Image**, int);
 extern void	bottomwindow(Image*);
 extern int	freescreen(Screen*);
-extern Screen*	publicscreen(Display*, int, ulong);
+extern Screen*	publicscreen(Display*, int, u32int);
 extern void	topnwindows(Image**, int);
 extern void	topwindow(Image*);
 extern int	originwindow(Image*, Point, Point);
@@ -480,7 +489,7 @@ extern Subfont*	_getsubfont(Display*, char*);
 extern Subfont*	getdefont(Display*);
 extern void		lockdisplay(Display*);
 extern void	unlockdisplay(Display*);
-extern int		drawlsetrefresh(ulong, int, void*, void*);
+extern int		drawlsetrefresh(u32int, int, void*, void*);
 
 /*
  * Predefined 
@@ -495,7 +504,7 @@ extern	Rectangle	ZR;
  */
 extern	Display	*display;
 extern	Font		*font;
-/* extern	Image	*screen; */
+extern	Image	*screen;
 extern	Screen	*_screen;
 extern	int	_cursorfd;
 extern	int	_drawdebug;	/* set to 1 to see errors from flushimage */
@@ -518,6 +527,6 @@ extern	void	_twiddlecompressed(uchar*, int);
 extern	int	_compblocksize(Rectangle, int);
 
 /* XXX backwards helps; should go */
-extern	int		log2[];
-extern	ulong	drawld2chan[];
+// extern	int		log2[];	/* was used by libmemlayer/line.c */
+extern	u32int	drawld2chan[];
 extern	void		drawsetdebug(int);

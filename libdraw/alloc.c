@@ -3,13 +3,13 @@
 #include <draw.h>
 
 Image*
-allocimage(Display *d, Rectangle r, ulong chan, int repl, ulong val)
+allocimage(Display *d, Rectangle r, u32int chan, int repl, u32int val)
 {
 	return _allocimage(nil, d, r, chan, repl, val, 0, 0);
 }
 
 Image*
-_allocimage(Image *ai, Display *d, Rectangle r, ulong chan, int repl, ulong val, int screenid, int refresh)
+_allocimage(Image *ai, Display *d, Rectangle r, u32int chan, int repl, u32int val, int screenid, int refresh)
 {
 	uchar *a;
 	char *err;
@@ -101,7 +101,7 @@ namedimage(Display *d, char *name)
 	char *err, buf[12*12+1];
 	Image *i;
 	int id, n;
-	ulong chan;
+	u32int chan;
 
 	err = 0;
 	i = 0;
@@ -120,7 +120,7 @@ namedimage(Display *d, char *name)
 	}
 	/* flush pending data so we don't get error allocating the image */
 	flushimage(d, 0);
-	a = bufimage(d, 1+4+1+n);
+	a = bufimage(d, 1+4+1+n+1);
 	if(a == 0)
 		goto Error;
 	d->imageid++;
@@ -129,10 +129,10 @@ namedimage(Display *d, char *name)
 	BPLONG(a+1, id);
 	a[5] = n;
 	memmove(a+6, name, n);
+	a[6+n] = 'I';
 	if(flushimage(d, 0) < 0)
 		goto Error;
-
-	if(pread(d->ctlfd, buf, sizeof buf, 0) < 12*12)
+	if(_displayrddraw(d, buf, sizeof buf) < 12*12)
 		goto Error;
 	buf[12*12] = '\0';
 
@@ -196,7 +196,7 @@ _freeimage1(Image *i)
 	Display *d;
 	Image *w;
 
-	if(i == 0)
+	if(i == 0 || i->display == 0)
 		return 0;
 	/* make sure no refresh events occur on this if we block in the write */
 	d = i->display;
@@ -231,6 +231,10 @@ freeimage(Image *i)
 {
 	int ret;
 
+	if(i == nil)
+		return 0;
+	if(i == screen)
+		abort();
 	ret = _freeimage1(i);
 	free(i);
 	return ret;
