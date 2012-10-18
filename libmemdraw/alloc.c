@@ -19,7 +19,7 @@ memimagemove(void *from, void *to)
 	md->base = to;
 
 	/* if allocmemimage changes this must change too */
-	md->bdata = (uchar*)md->base+sizeof(Memdata*)+sizeof(ulong);
+	md->bdata = (uchar*)md->base+sizeof(Memdata*)+sizeof(u32int);
 }
 
 Memimage*
@@ -86,7 +86,7 @@ allocmemimage(Rectangle r, u32int chan)
 		return nil;
 
 	md->ref = 1;
-	md->base = poolalloc(imagmem, sizeof(Memdata*)+(1+nw)*sizeof(ulong));
+	md->base = poolalloc(imagmem, sizeof(Memdata*)+(1+nw)*sizeof(u32int));
 	if(md->base == nil){
 		free(md);
 		return nil;
@@ -96,8 +96,8 @@ allocmemimage(Rectangle r, u32int chan)
 	*(Memdata**)p = md;
 	p += sizeof(Memdata*);
 
-	*(ulong*)p = getcallerpc(&r);
-	p += sizeof(ulong);
+	*(u32int*)p = getcallerpc(&r);
+	p += sizeof(u32int);
 
 	/* if this changes, memimagemove must change too */
 	md->bdata = p;
@@ -129,7 +129,7 @@ freememimage(Memimage *i)
 /*
  * Wordaddr is deprecated.
  */
-ulong*
+u32int*
 wordaddr(Memimage *i, Point p)
 {
 	return (u32int*) ((uintptr)byteaddr(i, p) & ~(sizeof(u32int)-1));

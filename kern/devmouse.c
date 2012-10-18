@@ -202,9 +202,10 @@ mouseclose(Chan *c)
 {
 	if((c->qid.type&QTDIR)==0 && (c->flag&COPEN)){
 		lock(&mouse.lk);
-		if(c->qid.path == Qmouse)
-			mouse.open = 0;
-		else if(c->qid.path == Qmousein){
+		if(c->qid.path == Qmouse){
+			termredraw();
+			mouse.open = 0;			
+		} else if(c->qid.path == Qmousein){
 			mouse.inopen = 0;
 			unlock(&mouse.lk);
 			return;

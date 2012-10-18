@@ -77,6 +77,9 @@ extern uchar* attachscreen(Rectangle*, ulong*, int*, int*, int*);
 void	drawqlock(void);
 void	drawqunlock(void);
 int	drawcanqlock(void);
-void	terminit(void);
 
-#define ishwimage(i)	0
+extern void drawreplacescreenimage(Memimage*);
+//extern void drawreplacescreenimage(void);
+
+void	terminit(void);
+void	termreplacescreenimage(Memimage*);

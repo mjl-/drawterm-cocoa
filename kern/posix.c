@@ -198,6 +198,15 @@ randomread(void *v, ulong n)
 }
 
 #undef time
+ulong
+msec(void)
+{
+	struct timeval tv;
+	
+	gettimeofday(&tv, 0);
+	return tv.tv_sec * 1000 + tv.tv_usec/1000;
+}
+
 long
 seconds(void)
 {
@@ -217,6 +226,16 @@ ticks(void)
 		usec0 = t.tv_usec;
 	}
 	return (t.tv_sec-sec0)*1000+(t.tv_usec-usec0+500)/1000;
+}
+
+void
+microdelay(int x)
+{
+	struct timeval tv;
+	
+	tv.tv_sec = x/1000000;
+	tv.tv_usec = x%1000000;
+	select(0, nil, nil, nil, &tv);
 }
 
 long

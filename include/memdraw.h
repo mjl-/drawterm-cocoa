@@ -198,7 +198,6 @@ extern Memdrawparam*	_memimagedrawsetup(Memimage*,
 				Rectangle, Memimage*, Point, Memimage*,
 				Point, int);
 extern void		_memimagedraw(Memdrawparam*);
-extern void		_drawreplacescreenimage(Memimage*);
 
 /*
  * doprint interface: numbconv bit strings

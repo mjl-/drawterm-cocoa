@@ -9,8 +9,11 @@
 
 #include "u.h"
 #include "lib.h"
+#define Image MImage
+#include "kern/mem.h"
 #include "kern/dat.h"
 #include "kern/fns.h"
+#undef Image
 #include "error.h"
 #include "user.h"
 #include <draw.h>
@@ -29,7 +32,7 @@
 extern Cursorinfo cursor;
 extern int mousequeue;
 
-#define LOG	if(0)NSLog
+#define LOG	if(1)NSLog
 
 int fullscreen = 0;		/* for -f options */
 
@@ -41,10 +44,9 @@ int usebigarrow = 1;
 int alting;
 
 Rectangle mouserect;
-int	mouseresized;
 
 Memimage	*gscreen;
-Screeninfo	screen;
+Screeninfo	screeninfo;
 
 #define WIN	win.ofs[win.isofs]
 
@@ -92,7 +94,6 @@ static void acceptresizing(int);
 static NSCursor* makecursor(Cursor*);
 
 void _flushmemscreen(Rectangle r);
-extern void		_drawreplacescreenimage(Memimage*);
 
 @implementation appdelegate
 
@@ -124,7 +125,7 @@ extern void		_drawreplacescreenimage(Memimage*);
 
 - (void)applicationDidFinishLaunching:(id)arg
 {
-	in.bigarrow = makecursor(&bigarrow);
+	in.bigarrow = makecursor(&arrow);
 	makeicon();
 	makemenu();
 
@@ -199,15 +200,23 @@ extern void		_drawreplacescreenimage(Memimage*);
 static Memimage* initimg(void);
 
 uchar *
-attachscreen(Rectangle *r, ulong *chan, int *depth, int *width, int *softscreen, void **X)
+attachscreen(Rectangle *r, ulong *chan, int *depth, int *width, int *softscreen)
 {
+	if(gscreen == nil){
+		screeninit();
+		if(gscreen == nil)
+			panic("cannot create OS X screen");
+	}
+
+	LOG(@"attachscreen %d,%d,%d,%d",
+		gscreen->r.min.x, gscreen->r.min.y, Dx(gscreen->r), Dy(gscreen->r));
 	*r = gscreen->r;
 	*chan = gscreen->chan;
 	*depth = gscreen->depth;
 	*width = gscreen->width;
 	*softscreen = 1;
 	topwin();
-	_flushmemscreen(gscreen->r);
+//	_flushmemscreen(gscreen->r);
 
 	return gscreen->data->bdata;
 }
@@ -259,7 +268,7 @@ enum
 	Winstyle = NSTitledWindowMask
 		| NSClosableWindowMask
 		| NSMiniaturizableWindowMask
-//		| NSResizableWindowMask
+		| NSResizableWindowMask
 };
 
 static void
@@ -275,7 +284,7 @@ makewin(NSSize *s)
 
 	if(s != NULL || fullscreen > 0){
 		if(fullscreen)
-			wr = Rect(0, 0, (int)r.size.width, (int)r.size.height);
+			wr = Rect(0, 0, (int)sr.size.width, (int)sr.size.height);
 		else
 			wr = Rect(0, 0, (int)s->width, (int)s->height);
 		set = 0;
@@ -333,17 +342,16 @@ initimg(void)
 	if(i->data == nil)
 		panic("i->data == nil");
 
-	win.img = [[NSBitmapImageRep alloc]
-		initWithBitmapDataPlanes:&i->data->bdata
-		pixelsWide:Dx(r)
-		pixelsHigh:Dy(r)
-		bitsPerSample:8
-		samplesPerPixel:3
-		hasAlpha:NO
-		isPlanar:NO
-		colorSpaceName:NSDeviceRGBColorSpace
-		bytesPerRow:bytesperline(r, 32)
-		bitsPerPixel:32];
+	win.img = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:&i->data->bdata
+			pixelsWide:Dx(r)
+			pixelsHigh:Dy(r)
+			bitsPerSample:8
+			samplesPerPixel:3
+			hasAlpha:NO
+			isPlanar:NO
+			colorSpaceName:NSDeviceRGBColorSpace
+			bytesPerRow:bytesperline(r, 32)
+			bitsPerPixel:32];
 
 	return i;
 }
@@ -351,20 +359,20 @@ initimg(void)
 static void
 resizeimg()
 {
-#warning fix resizeimg
-/* fix later
-	Memimage *om;
+	Memimage *m;
 
-	[win.img release];
-	om = gscreen;
+	if(win.img != nil)
+		[win.img release];
+
+	m = gscreen;
 	gscreen = initimg();
-	_drawreplacescreenimage(gscreen);
-*/
-	drawqlock();
-	flushmemscreen(gscreen->r);
-	drawqunlock();
+	termreplacescreenimage(gscreen);
+	drawreplacescreenimage(gscreen);
 
-	mouseresized = 1;
+	if(m)
+		freememimage(m);
+
+//	mouseresize();
 	sendmouse();
 }
 
@@ -392,11 +400,10 @@ waitimg(int msec)
 void
 _flushmemscreen(Rectangle r)
 {
-
-	LOG(@"_flushmemscreen");
-
 	if([win.content canDraw] == 0)
 		return;
+
+	LOG(@"_flushmemscreen");
 
 	NSRect rect;
 	rect = NSMakeRect(r.min.x, r.min.y, Dx(r), Dy(r));
@@ -948,19 +955,12 @@ getgesture(NSEvent *e)
 
 static void sendclick(NSUInteger);
 
-static uint
-msec(void)
-{
-#warning nsec
-//	return nsec()/1000000;
-	return ticks();
-}
-
+#if 0
 void
-mousetrack(int x, int y, NSUInteger b, uint ms)
+mousetrack(int x, int y, int b, int ms)
 {
-	Mouse *m;
-	int i;
+	Mousestate mstate;
+	int lastb;
 	
 	if(x < mouserect.min.x)
 		x = mouserect.min.x;
@@ -972,28 +972,30 @@ mousetrack(int x, int y, NSUInteger b, uint ms)
 		y = mouserect.max.y;
 
 	lock(&mouse.lk);
-	i = mouse.wi;
-	if(mousequeue) {
-		if(i == mouse.ri || mouse.lastb != b || mouse.trans) {
-			mouse.wi = (i+1)%Mousequeue;
-			if(mouse.wi == mouse.ri)
-				mouse.ri = (mouse.ri+1)%Mousequeue;
-			mouse.trans = mouse.lastb != b;
-		} else {
-			i = (i-1+Mousequeue)%Mousequeue;
-		}
-	} else {
-		mouse.wi = (i+1)%Mousequeue;
-		mouse.ri = i;
+	mstate = mouse.state;
+	lastb = mstate.buttons;
+	mstate.xy = Pt(x, y);
+	mstate.buttons = b|in.kbuttons;
+	mouse.redraw = 1;
+	mstate.counter++;
+	mstate.msec = ms;
+
+	/*
+	 * if the queue fills, we discard the entire queue and don't
+	 * queue any more events until a reader polls the mouse.
+	 */
+	if(!mouse.qfull && lastb != b) {	/* add to ring */
+		mouse.queue[mouse.wi] = mouse.state;
+		if(++mouse.wi == nelem(mouse.queue))
+			mouse.wi = 0;
+		if(mouse.wi == mouse.ri)
+			mouse.qfull = 1;
 	}
-	mouse.queue[i].xy.x = x;
-	mouse.queue[i].xy.y = y;
-	mouse.queue[i].buttons = (int)b;
-	mouse.queue[i].msec = ms;
-	mouse.lastb = (int)b;
+
 	unlock(&mouse.lk);
 	wakeup(&mouse.r);
 }
+#endif
 
 static void
 gettouch(NSEvent *e, int type)
@@ -1270,31 +1272,21 @@ putsnarf(char *s)
 	[str release];
 }
 
-void
-setcursor(void)
+int
+cursoron(int dolock)
 {
-	NSCursor *newCursor;
-	Cursor crsr;
-	int i;
+	return 1;
+}
 
-	for(i=0; i<2*16; i++){
-		crsr.set[i] = cursor.set[i];
-		crsr.clr[i] = cursor.set[i] | cursor.clr[i];
-	}
-	crsr.offset.x = cursor.offset.x;
-	crsr.offset.y = cursor.offset.y;
+void
+cursoroff(int d)
+{
+}
 
-	newCursor = makecursor(&crsr);
-	setcursor0(newCursor);
-	/*
-	 * No cursor change unless in main thread.
-	 */
-	 /*
-	[appdelegate
-		performSelectorOnMainThread:@selector(callsetcursor0:)
-		withObject:newCursor
-		waitUntilDone:YES];
-		*/
+void
+setcursor(Cursor *curs)
+{
+	setcursor0(makecursor(curs));
 }
 
 static void
@@ -1371,11 +1363,9 @@ screeninit(void)
 							   waitUntilDone:YES];
 
 	memimageinit();
-	gscreen = initimg();
-	terminit();
-	drawqlock();
-	flushmemscreen(gscreen->r);
-	drawqunlock();
+	resizeimg();
+//	gscreen = initimg();
+//	termreplacescreenimage(gscreen);
 }
 
 // PAL - no palette handling.  Don't intend to either.
@@ -1401,6 +1391,11 @@ cursorarrow(void)
 	drawqlock();
 	setcursor0([in.bigarrow retain]);
 	drawqunlock();
+}
+
+void
+mousectl(Cmdbuf *cb)
+{
 }
 
 void

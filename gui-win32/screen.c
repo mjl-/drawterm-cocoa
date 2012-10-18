@@ -16,7 +16,7 @@
 #include "keyboard.h"
 
 Memimage	*gscreen;
-Screeninfo	screen;
+Screeninfo	screeninfo;
 
 extern int mousequeue;
 static int depth;
@@ -56,24 +56,24 @@ screeninit(void)
 		depth = GetDeviceCaps(GetDC(NULL), BITSPIXEL);
 	switch(depth){
 	case 32:
-		screen.dibtype = DIB_RGB_COLORS;
-		screen.depth = 32;
+		screeninfo.dibtype = DIB_RGB_COLORS;
+		screeninfo.depth = 32;
 		fmt = XRGB32;
 		break;
 	case 24:
-		screen.dibtype = DIB_RGB_COLORS;
-		screen.depth = 24;
+		screeninfo.dibtype = DIB_RGB_COLORS;
+		screeninfo.depth = 24;
 		fmt = RGB24;
 		break;
 	case 16:
-		screen.dibtype = DIB_RGB_COLORS;
-		screen.depth = 16;
+		screeninfo.dibtype = DIB_RGB_COLORS;
+		screeninfo.depth = 16;
 		fmt = RGB15;	/* [sic] */
 		break;
 	case 8:
 	default:
-		screen.dibtype = DIB_PAL_COLORS;
-		screen.depth = 8;
+		screeninfo.dibtype = DIB_PAL_COLORS;
+		screeninfo.depth = 8;
 		depth = 8;
 		fmt = CMAP8;
 		break;
@@ -159,7 +159,7 @@ screenload(Rectangle r, int depth, uchar *p, Point pt, int step)
 	bmi->bmiHeader.biHeight = -dy;	/* - => origin upper left */
 
 	StretchDIBits(hdc, r.min.x, r.min.y, dx, dy,
-		delx, 0, dx, dy, p, bmi, screen.dibtype, SRCCOPY);
+		delx, 0, dx, dy, p, bmi, screeninfo.dibtype, SRCCOPY);
 
 	ReleaseDC(window, hdc);
 

@@ -1,5 +1,6 @@
 #include "u.h"
 #include "lib.h"
+#include "kern/mem.h"
 #include "kern/dat.h"
 #include "kern/fns.h"
 #include "user.h"
@@ -38,7 +39,7 @@ dtmain(int argc, char **argv)
 
 	sizebug();
 
-//	osinit();
+//	osinit();		/* called in main-cocoa.m */
 	procinit0();
 	printinit();
 	screeninit();
@@ -65,6 +66,8 @@ dtmain(int argc, char **argv)
 		panic("open1: %r");
 	if(open("/dev/cons", OWRITE) != 2)
 		panic("open2: %r");
+
+	terminit();
 
 	cpumain(argc, argv);
 	return 0;
@@ -125,3 +128,8 @@ findkey(char **puser, char *dom)
 	return nil;
 }
 
+char*
+getconf(char *name)
+{
+	return nil;
+}

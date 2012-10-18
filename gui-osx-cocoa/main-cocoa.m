@@ -1,9 +1,9 @@
 #import <Cocoa/Cocoa.h>
 #import "screen-cocoa.h"
 
-#undef nil
 #include "u.h"
 #include "lib.h"
+#include "kern/mem.h"
 #include "kern/dat.h"
 #include "kern/fns.h"
 
@@ -20,6 +20,7 @@ int main(int argc, char *argv[])
 	threadargv = argv;
 
 	osinit();
+	/* create a proc for the main thread */
 	p = newproc();
 	p->fgrp = dupfgrp(nil);
 	p->rgrp = newrgrp();
