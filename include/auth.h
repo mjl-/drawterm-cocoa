@@ -37,7 +37,7 @@ enum
 struct AuthRpc
 {
 	int afd;
-	char ibuf[AuthRpcMax];
+	char ibuf[AuthRpcMax+1];	/* +1 for NUL in auth_rpc.c */
 	char obuf[AuthRpcMax];
 	char *arg;
 	uint narg;
@@ -96,7 +96,6 @@ extern	int	login(char*, char*, char*);
 extern	int	httpauth(char*, char*);
 
 typedef struct Attr Attr;
-typedef struct String String;
 enum {
 	AttrNameval,		/* name=val -- when matching, must have name=val */
 	AttrQuery,		/* name? -- when matching, must be present */
