@@ -32,7 +32,7 @@
 extern Cursorinfo cursor;
 extern int mousequeue;
 
-#define LOG	if(1)NSLog
+#define LOG	if(0)NSLog
 
 int usegestures = 0;
 int useliveresizing = 0;
@@ -70,8 +70,7 @@ struct
 	int		willactivate;
 } in;
 
-void calldtmain(void);
-int dtmain(int argc, char *argv[]);
+void initcpu(void);
 
 void	topwin(void);
 
@@ -97,17 +96,6 @@ void _flushmemscreen(Rectangle r);
 
 @synthesize arrowCursor = _arrowCursor;
 
-+ (void)callcpumain:(id)arg
-{
-	NSProcessInfo *pinfo;
-
-	pinfo = [NSProcessInfo processInfo];
-	[pinfo enableSuddenTermination];
-
-	calldtmain();
-	[NSApp terminate:self];
-}
-
 + (void)callflushwin:(id)arg{ flushwin();}
 + (void)callmakewin:(NSValue*)v{ makewin([v pointerValue]);}
 + (void)callsetcursor0:(NSCursor*)c { setcursor0(c); }
@@ -116,12 +104,16 @@ void _flushmemscreen(Rectangle r);
 
 - (void)applicationDidFinishLaunching:(id)arg
 {
+	NSProcessInfo *pinfo;
+
+	pinfo = [NSProcessInfo processInfo];
+	[pinfo enableSuddenTermination];
+
 	in.bigarrow = makecursor(&arrow);
 	makeicon();
 	makemenu();
 
-	[NSApplication detachDrawingThread:@selector(callcpumain:)
-							  toTarget:[self class] withObject:nil];
+	initcpu();
 }
 
 - (void)windowDidBecomeKey:(id)arg
@@ -357,8 +349,8 @@ resizeimg()
 	termreplacescreenimage(gscreen);
 	drawreplacescreenimage(gscreen);
 
-	if(m)
-		freememimage(m);
+//	if(m)
+//		freememimage(m);
 
 //	mouseresize();
 	sendmouse();
@@ -423,8 +415,12 @@ flushimg(NSRect rect)
 {
 	NSRect dr, r;
 
-	if([win.content lockFocusIfCanDraw] == NO)
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+
+	if([win.content lockFocusIfCanDraw] == NO){
+		[pool release];
 		return;
+	}
 /*
 	if(win.needimg){
 		if(!NSEqualSizes(rect.size, [win.img size])){
@@ -438,7 +434,6 @@ flushimg(NSRect rect)
 */
 	LOG(@"flushimg ok %.0f %.0f", rect.size.width, rect.size.height);
 
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
 	/*
 	 * Unless we are inside "drawRect", we have to round
@@ -1352,8 +1347,6 @@ screeninit(void)
 
 	memimageinit();
 	resizeimg();
-//	gscreen = initimg();
-//	termreplacescreenimage(gscreen);
 }
 
 // PAL - no palette handling.  Don't intend to either.

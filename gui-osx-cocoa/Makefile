@@ -7,7 +7,6 @@ OFILES=\
 	cload.$O\
 	load.$O\
 	mouseswap.$O\
-	dtmain.$O\
 	screen-cocoa.$O\
 	main-cocoa.$O
 

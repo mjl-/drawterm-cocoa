@@ -2325,3 +2325,24 @@ drawreplacescreenimage(Memimage *m)
 	drawqunlock();
 	mouseresize();
 }
+
+#if 0
+QLock	replock;
+
+void
+drawreplacescreenimage(Memimage *m)
+{
+	if(screendimage == nil)
+		return;
+
+	qlock(&replock);
+
+	deletescreenimage();
+	resetscreenimage();
+
+	qunlock(&replock);
+
+	mouseresize();
+
+}
+#endif

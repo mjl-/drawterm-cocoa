@@ -46,7 +46,6 @@ exportfs(int fd, int msgsz)
 
 	srvfd = -1;
 	netfd = fd;
-	//dbg = 1;
 
 	strcpy(buf, "this is buf");
 	strcpy(ebuf, "this is ebuf");
