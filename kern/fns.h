@@ -402,11 +402,16 @@ void		_xinc(long*);
 long		_xdec(long*);
 long		lcycles(void);
 
+ulong	msec(void);
 ulong	ticks(void);
-void	osproc(Proc*);
+void osmsleep(int ms);
+void	oserror(void);
+void	oserrstr(void);
 void	osnewproc(Proc*);
+void	osproc(Proc*);
 void	procsleep(void);
 void	procwakeup(Proc*);
 void	osinit(void);
 void	screeninit(void);
+long showfilewrite(char *a, int n);
 extern	void	terminit(void);

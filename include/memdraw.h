@@ -92,8 +92,7 @@ enum {
 	Simplemask=1<<1,
 	Replsrc=1<<2,
 	Replmask=1<<3,
-	Fullsrc=1<<4,
-	Fullmask=1<<5
+	Fullmask=1<<4,
 };
 struct	Memdrawparam
 {
@@ -121,15 +120,15 @@ extern Memimage*	allocmemimage(Rectangle, u32int);
 extern Memimage*	allocmemimaged(Rectangle, u32int, Memdata*);
 extern Memimage*	readmemimage(int);
 extern Memimage*	creadmemimage(int);
-extern int		writememimage(int, Memimage*);
-extern void		freememimage(Memimage*);
+extern int	writememimage(int, Memimage*);
+extern void	freememimage(Memimage*);
 extern int		loadmemimage(Memimage*, Rectangle, uchar*, int);
 extern int		cloadmemimage(Memimage*, Rectangle, uchar*, int);
 extern int		unloadmemimage(Memimage*, Rectangle, uchar*, int);
-extern u32int*		wordaddr(Memimage*, Point);
-extern uchar*		byteaddr(Memimage*, Point);
+extern u32int*	wordaddr(Memimage*, Point);
+extern uchar*	byteaddr(Memimage*, Point);
 extern int		drawclip(Memimage*, Rectangle*, Memimage*, Point*, Memimage*, Point*, Rectangle*, Rectangle*);
-extern void		memfillcolor(Memimage*, u32int);
+extern void	memfillcolor(Memimage*, u32int);
 extern int		memsetchan(Memimage*, u32int);
 
 /*
@@ -157,8 +156,8 @@ extern void	memimageinit(void);
  */
 extern Memsubfont*	allocmemsubfont(char*, int, int, int, Fontchar*, Memimage*);
 extern Memsubfont*	openmemsubfont(char*);
-extern void		freememsubfont(Memsubfont*);
-extern Point		memsubfontwidth(Memsubfont*, char*);
+extern void	freememsubfont(Memsubfont*);
+extern Point	memsubfontwidth(Memsubfont*, char*);
 extern Memsubfont*	getmemdefont(void);
 
 /*

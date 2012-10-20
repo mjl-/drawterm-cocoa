@@ -9,13 +9,13 @@
 
 #include "u.h"
 #include "lib.h"
-#define Image MImage
 #include "kern/mem.h"
 #include "kern/dat.h"
 #include "kern/fns.h"
-#undef Image
 #include "error.h"
 #include "user.h"
+
+#define Image IMAGE
 #include <draw.h>
 #include <memdraw.h>
 #include <keyboard.h>
@@ -348,11 +348,13 @@ resizeimg()
 	gscreen = initimg();
 	termreplacescreenimage(gscreen);
 	drawreplacescreenimage(gscreen);
+//	deletescreenimage();
+//	resetscreenimage();
 
-//	if(m)
-//		freememimage(m);
+	if(m)
+		freememimage(m);
 
-//	mouseresize();
+	mouseresize();
 	sendmouse();
 }
 

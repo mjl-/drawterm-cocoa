@@ -129,8 +129,6 @@ DBG	print("memimagedraw %p/%luX %R @ %p %p/%luX %P %p/%luX %P... ", dst, dst->ch
 //				if (drawdebug) iprint("fill with transparent source\n");
 				return;	/* no-op successfully handled */
 			}
-			if((par.srgba&0xFF) == 0xFF)
-				par.state |= Fullsrc;
 		}
 	}
 
@@ -572,19 +570,19 @@ dumpbuf(char *s, Buffer b, int n)
 	print("%s", s);
 	for(i=0; i<n; i++){
 		print(" ");
-		if(p=b.grey){
+		if((p=b.grey)){
 			print(" k%.2uX", *p);
 			b.grey += b.delta;
 		}else{	
-			if(p=b.red){
+			if((p=b.red)){
 				print(" r%.2uX", *p);
 				b.red += b.delta;
 			}
-			if(p=b.grn){
+			if((p=b.grn)){
 				print(" g%.2uX", *p);
 				b.grn += b.delta;
 			}
-			if(p=b.blu){
+			if((p=b.blu)){
 				print(" b%.2uX", *p);
 				b.blu += b.delta;
 			}
@@ -808,50 +806,6 @@ alphacalc0(Buffer bdst, Buffer b1, Buffer b2, int dx, int grey, int op)
 	return bdst;
 }
 
-/*
- * Do the channels in the buffers match enough
- * that we can do word-at-a-time operations
- * on the pixels?
- */
-static int
-chanmatch(Buffer *bdst, Buffer *bsrc)
-{
-	uchar *drgb, *srgb;
-	
-	/*
-	 * first, r, g, b must be in the same place
-	 * in the rgba word.
-	 */
-	drgb = (uchar*)bdst->rgba;
-	srgb = (uchar*)bsrc->rgba;
-	if(bdst->red - drgb != bsrc->red - srgb
-	|| bdst->blu - drgb != bsrc->blu - srgb
-	|| bdst->grn - drgb != bsrc->grn - srgb)
-		return 0;
-	
-	/*
-	 * that implies alpha is in the same place,
-	 * if it is there at all (it might be == &ones).
-	 * if the destination is &ones, we can scribble
-	 * over the rgba slot just fine.
-	 */
-	if(bdst->alpha == &ones)
-		return 1;
-	
-	/*
-	 * if the destination is not ones but the src is,
-	 * then the simultaneous calculation will use
-	 * bogus bytes from the src's rgba.  no good.
-	 */
-	if(bsrc->alpha == &ones)
-		return 0;
-	
-	/*
-	 * otherwise, alphas are in the same place.
-	 */
-	return 1;
-}
-
 static Buffer
 alphacalc14(Buffer bdst, Buffer bsrc, Buffer bmask, int dx, int grey, int op)
 {
@@ -862,7 +816,7 @@ alphacalc14(Buffer bdst, Buffer bsrc, Buffer bmask, int dx, int grey, int op)
 
 	obdst = bdst;
 	sadelta = bsrc.alpha == &ones ? 0 : bsrc.delta;
-	q = bsrc.delta == 4 && bdst.delta == 4 && chanmatch(&bdst, &bsrc);
+	q = bsrc.delta == 4 && bdst.delta == 4;
 
 	for(i=0; i<dx; i++){
 		sa = *bsrc.alpha;
@@ -914,7 +868,7 @@ alphacalc2810(Buffer bdst, Buffer bsrc, Buffer bmask, int dx, int grey, int op)
 
 	obdst = bdst;
 	sadelta = bsrc.alpha == &ones ? 0 : bsrc.delta;
-	q = bsrc.delta == 4 && bdst.delta == 4 && chanmatch(&bdst, &bsrc);
+	q = bsrc.delta == 4 && bdst.delta == 4;
 
 	for(i=0; i<dx; i++){
 		ma = *bmask.alpha;
@@ -968,7 +922,7 @@ alphacalc3679(Buffer bdst, Buffer bsrc, Buffer bmask, int dx, int grey, int op)
 
 	obdst = bdst;
 	sadelta = bsrc.alpha == &ones ? 0 : bsrc.delta;
-	q = bsrc.delta == 4 && bdst.delta == 4 && chanmatch(&bdst, &bsrc);
+	q = bsrc.delta == 4 && bdst.delta == 4;
 
 	for(i=0; i<dx; i++){
 		sa = *bsrc.alpha;
@@ -1040,7 +994,7 @@ alphacalc11(Buffer bdst, Buffer bsrc, Buffer bmask, int dx, int grey, int op)
 	USED(op);
 	obdst = bdst;
 	sadelta = bsrc.alpha == &ones ? 0 : bsrc.delta;
-	q = bsrc.delta == 4 && bdst.delta == 4 && chanmatch(&bdst, &bsrc);
+	q = bsrc.delta == 4 && bdst.delta == 4;
 
 	for(i=0; i<dx; i++){
 		sa = *bsrc.alpha;
@@ -1357,7 +1311,7 @@ readnbit(Param *p, uchar *buf, int y)
 DBG print("readnbit dx %d %p=%p+%d*%d, *r=%d fetch %d ", dx, r, p->bytermin, y, p->bwidth, *r, n);
 	bits = *r++;
 	nbits = 8;
-	if(i=x&(npack-1)){
+	if((i=x&(npack-1))){
 DBG print("throwaway %d...", i);
 		bits <<= depth*i;
 		nbits -= depth*i;
@@ -1389,7 +1343,7 @@ DBG print("bit %x...", repl[bits>>sh]);
 DBG print("x=%d r=%p...", x, r);
 	bits = *r++;
 	nbits = 8;
-	if(i=x&(npack-1)){
+	if((i=x&(npack-1))){
 		bits <<= depth*i;
 		nbits -= depth*i;
 	}
@@ -2414,7 +2368,7 @@ if(0) if(drawdebug) iprint("chardraw? mf %lux md %d sf %lux dxs %d dys %d dd %d 
 	mr = par->mr;
 	op = par->op;
 
-	if((par->state&(Replsrc|Simplesrc|Fullsrc|Replmask)) != (Replsrc|Simplesrc|Fullsrc)
+	if((par->state&(Replsrc|Simplesrc|Replmask)) != (Replsrc|Simplesrc)
 	|| mask->depth != 1 || src->flags&Falpha || dst->depth<8 || dst->data==src->data
 	|| op != SoverD)
 		return 0;
@@ -2524,12 +2478,13 @@ DBG print("\n");
 #undef DBG
 
 
+#if 0
 /*
  * Fill entire byte with replicated (if necessary) copy of source pixel,
  * assuming destination ldepth is >= source ldepth.
  *
  * This code is just plain wrong for >8bpp.
- *
+ */
 u32int
 membyteval(Memimage *src)
 {
@@ -2540,14 +2495,13 @@ membyteval(Memimage *src)
 	bpp = src->depth;
 	uc <<= (src->r.min.x&(7/src->depth))*src->depth;
 	uc &= ~(0xFF>>bpp);
-	/* pixel value is now in high part of byte. repeat throughout byte 
+	/* pixel value is now in high part of byte. repeat throughout byte */
 	val = uc;
 	for(i=bpp; i<8; i<<=1)
 		val |= val>>i;
 	return val;
 }
- * 
- */
+#endif
 
 void
 memfillcolor(Memimage *i, u32int val)

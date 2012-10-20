@@ -5,6 +5,7 @@
 #include	"fns.h"
 #include	"error.h"
 
+#include	<authsrv.h>
 #include 	"keyboard.h"
 
 void	(*consdebug)(void) = 0;

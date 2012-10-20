@@ -82,4 +82,5 @@ extern void drawreplacescreenimage(Memimage*);
 //extern void drawreplacescreenimage(void);
 
 void	terminit(void);
+void	termredraw(void);
 void	termreplacescreenimage(Memimage*);

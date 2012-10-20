@@ -171,6 +171,7 @@ struct Waitmsg
 } Waitmsg;
 
 extern	void*	mallocz(ulong, int);
+extern	void	setmalloctag(void*, ulong);
 
 extern	uintptr	getcallerpc(void*);
 extern	char*	cleanname(char*);

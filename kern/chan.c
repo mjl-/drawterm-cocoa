@@ -1,6 +1,6 @@
 #include	"u.h"
 #include	"lib.h"
-#include 	"mem.h"
+#include	"mem.h"
 #include	"dat.h"
 #include	"fns.h"
 #include	"error.h"
@@ -524,7 +524,7 @@ ccloseq(Chan *c)
 	if(c->flag&CFREE)
 		panic("cclose %#p", getcallerpc(&c));
 
-	DBG("ccloseq %p name=%s ref=%ld\n", c, c->path->s, c->ref);
+	DBG("ccloseq %p name=%s ref=%ld\n", c, c->path->s, c->ref.ref);
 
 	if(decref(&c->ref))
 		return;
@@ -544,18 +544,15 @@ ccloseq(Chan *c)
 }
 
 static int
-clunkwork(void* c)
+clunkwork(void *v)
 {
-	USED(c);
 	return clunkq.head != nil;
 }
 
 void
-closeproc(void* p)
+closeproc(void *v)
 {
 	Chan *c;
-
-	USED(p);
 
 	for(;;){
 		qlock(&clunkq.q);
@@ -592,7 +589,7 @@ cunique(Chan *c)
 {
 	Chan *nc;
 
-	if(c->ref.ref != 1) {
+	if(c->ref.ref != 1){
 		nc = cclone(c);
 		cclose(c);
 		c = nc;
@@ -1722,13 +1719,13 @@ validname0(char *aname, int slashok, int dup, ulong pc)
 	Rune r;
 
 	name = aname;
-/*
+	/*
 	if((ulong)name < KZERO){
 		if(!dup)
 			print("warning: validname called from %#p with user pointer", pc);
 		ename = vmemchr(name, 0, (1<<16));
 	}else
-*/
+	*/
 		ename = memchr(name, 0, (1<<16));
 
 	if(ename==nil || ename-name>=(1<<16))

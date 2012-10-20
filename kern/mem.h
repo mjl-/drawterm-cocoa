@@ -1,9 +1,12 @@
 /*
  * Memory and machine-specific definitions.  Used in C and assembler.
  */
-
+#ifndef MIN
 #define MIN(a, b)	((a) < (b)? (a): (b))
+#endif
+#ifndef MAX
 #define MAX(a, b)	((a) > (b)? (a): (b))
+#endif
 
 /*
  * Sizes

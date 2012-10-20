@@ -5,7 +5,12 @@
 Image*
 allocimage(Display *d, Rectangle r, u32int chan, int repl, u32int val)
 {
-	return _allocimage(nil, d, r, chan, repl, val, 0, 0);
+	Image*	i;
+
+	i =  _allocimage(nil, d, r, chan, repl, val, 0, 0);
+	if (i)
+		setmalloctag(i, getcallerpc(&d));
+	return i;
 }
 
 Image*
@@ -120,7 +125,7 @@ namedimage(Display *d, char *name)
 	}
 	/* flush pending data so we don't get error allocating the image */
 	flushimage(d, 0);
-	a = bufimage(d, 1+4+1+n+1);
+	a = bufimage(d, 1+4+1+n);
 	if(a == 0)
 		goto Error;
 	d->imageid++;
@@ -129,10 +134,10 @@ namedimage(Display *d, char *name)
 	BPLONG(a+1, id);
 	a[5] = n;
 	memmove(a+6, name, n);
-	a[6+n] = 'I';
 	if(flushimage(d, 0) < 0)
 		goto Error;
-	if(_displayrddraw(d, buf, sizeof buf) < 12*12)
+
+	if(pread(d->ctlfd, buf, sizeof buf, 0) < 12*12)
 		goto Error;
 	buf[12*12] = '\0';
 
@@ -231,10 +236,6 @@ freeimage(Image *i)
 {
 	int ret;
 
-	if(i == nil)
-		return 0;
-	if(i == screen)
-		abort();
 	ret = _freeimage1(i);
 	free(i);
 	return ret;

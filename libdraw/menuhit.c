@@ -1,6 +1,7 @@
 #include <u.h>
 #include <libc.h>
 #include <draw.h>
+#include <cursor.h>
 #include <mouse.h>
 
 enum
@@ -168,7 +169,7 @@ menuhit(int but, Mousectl *mc, Menu *menu, Screen *scr)
 	replclipr(screen, 0, screen->r);
 	maxwid = 0;
 	for(nitem = 0;
-	    item = menu->item? menu->item[nitem] : (*menu->gen)(nitem);
+	    (item = menu->item? menu->item[nitem] : (*menu->gen)(nitem));
 	    nitem++){
 		i = stringwidth(font, item);
 		if(i > maxwid)

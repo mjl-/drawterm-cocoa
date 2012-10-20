@@ -714,10 +714,8 @@ drawfreedimage(DImage *dimage)
 //	if(dimage->image == screenimage)	/* don't free the display */
 //		goto Return;
 	ds = dimage->dscreen;
-	l = dimage->image;
-	dimage->dscreen = nil;	/* paranoia */
-	dimage->image = nil;
 	if(ds){
+		l = dimage->image;
 		if(l->data == screenimage->data)
 			addflush(l->layer->screenr);
 		if(l->layer->refreshfn == drawrefresh)	/* else true owner will clean up */
@@ -729,7 +727,7 @@ drawfreedimage(DImage *dimage)
 			memlfree(l);
 		drawfreedscreen(ds);
 	}else
-		freememimage(l);
+		freememimage(dimage->image);
     Return:
 	free(dimage->fchar);
 	free(dimage);
@@ -1042,7 +1040,7 @@ static Chan*
 drawattach(char *spec)
 {
 	dlock();
-	if(!conf.monitor || !initscreenimage()){
+	if(!initscreenimage()){
 		dunlock();
 		error("no frame buffer");
 	}
@@ -2189,7 +2187,7 @@ drawblankscreen(int blank)
 		return;
 	if(!candlock())
 		return;
-	if(!initscreenimage()){
+	if(screenimage == nil){
 		dunlock();
 		return;
 	}
@@ -2237,38 +2235,6 @@ drawidletime(void)
 	return TK2SEC(msec()/1000 - sdraw.blanktime)/60;
 }
 
-#if 0
-void
-drawreplacescreenimage(void)
-{
-	int i;
-
-	deletescreenimage();
-	resetscreenimage();
-
-	/*
-	 * Every client, when it starts, gets a copy of the
-	 * screen image as image 0.  Clients only use it 
-	 * for drawing if there is no /dev/winname, but
-	 * this /dev/draw provides a winname (early ones
-	 * didn't; winname originated in rio), so the
-	 * image only ends up used to find the screen
-	 * resolution and pixel format during initialization.
-	 * Silently remove the now-outdated image 0s.
-	 */
-//	qlock(&sdraw.lk);
-	for(i=0; i<sdraw.nclient; i++){
-		if(sdraw.client[i] && !waserror()){
-			drawuninstall(sdraw.client[i], 0);
-			poperror();
-		}
-	}
-
-//	qunlock(&sdraw.lk);
-	mouseresize();
-}
-#endif
-
 void
 drawreplacescreenimage(Memimage *m)
 {
@@ -2297,6 +2263,7 @@ drawreplacescreenimage(Memimage *m)
 		if(sdraw.name[i].dimage == screendimage)
 		if(sdraw.name[i].client == nil){
 			sdraw.name[i].dimage = di;
+			di->name = sdraw.name[i].name;
 			break;
 		}
 	}
@@ -2325,24 +2292,3 @@ drawreplacescreenimage(Memimage *m)
 	drawqunlock();
 	mouseresize();
 }
-
-#if 0
-QLock	replock;
-
-void
-drawreplacescreenimage(Memimage *m)
-{
-	if(screendimage == nil)
-		return;
-
-	qlock(&replock);
-
-	deletescreenimage();
-	resetscreenimage();
-
-	qunlock(&replock);
-
-	mouseresize();
-
-}
-#endif

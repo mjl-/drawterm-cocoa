@@ -117,7 +117,7 @@ _termreplacescreenimage(Memimage *m)
 	if(!mouse.open){
 		memimagedraw(m, r, term.grey, ZP, memopaque, ZP, S);
 		memimagestring(m, addpt(r.min, Pt(Border, Border)),
-			memwhite, ZP, term.font, "drawterm");
+			memwhite, ZP, term.font, "Plan 9 drawterm console");
 	}
 	r.min.y = r.max.y;
 	r.max.y += 2;
