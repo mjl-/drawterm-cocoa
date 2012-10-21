@@ -199,7 +199,6 @@ attachscreen(Rectangle *r, ulong *chan, int *depth, int *width, int *softscreen)
 	*width = gscreen->width;
 	*softscreen = 1;
 	topwin();
-//	_flushmemscreen(gscreen->r);
 
 	return gscreen->data->bdata;
 }
@@ -336,25 +335,44 @@ initimg(void)
 	return i;
 }
 
+extern Mouseinfo mouse;
+
 static void
 resizeimg()
 {
 	Memimage *m;
 
-	if(win.img != nil)
-		[win.img release];
+	if(win.img == nil)
+		return;
 
+	[win.img release];
 	m = gscreen;
 	gscreen = initimg();
-	termreplacescreenimage(gscreen);
-	drawreplacescreenimage(gscreen);
-//	deletescreenimage();
-//	resetscreenimage();
 
-	if(m)
-		freememimage(m);
+//	if(!mouse.open)
+		termreplacescreenimage(gscreen);
+//	else
+		drawreplacescreenimage(gscreen);
 
-	mouseresize();
+	memimagedraw(gscreen, gscreen->r, memwhite, ZP, memopaque, ZP, S);
+/*
+	if(!mouse.open)
+		termreplacescreenimage(initimg());
+	else {
+	//	drawreplacescreenimage(m);
+		cursoroff(1);
+		deletescreenimage();
+		if(gscreen)
+			freememimage(gscreen);
+		gscreen = initimg();
+		resetscreenimage();
+//		memimagedraw(gscreen, gscreen->r, memblack, ZP, memopaque, ZP, S);
+//		flushmemscreen(gscreen->r);
+		cursoron(1);
+	}
+*/
+
+	[win.content setHidden:NO];
 	sendmouse();
 }
 
@@ -416,13 +434,13 @@ static void
 flushimg(NSRect rect)
 {
 	NSRect dr, r;
-
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
 	if([win.content lockFocusIfCanDraw] == NO){
 		[pool release];
 		return;
 	}
+
 /*
 	if(win.needimg){
 		if(!NSEqualSizes(rect.size, [win.img size])){
@@ -1291,6 +1309,7 @@ setcursor0(NSCursor *c)
 static NSCursor*
 makecursor(Cursor *c)
 {
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	NSBitmapImageRep *r;
 	NSCursor *d;
 	NSImage *i;
@@ -1323,6 +1342,7 @@ makecursor(Cursor *c)
 
 	d = [[NSCursor alloc] initWithImage:i hotSpot:p];
 	[i release];
+	[pool release];
 	return d;
 }
 
@@ -1348,7 +1368,7 @@ screeninit(void)
 							   waitUntilDone:YES];
 
 	memimageinit();
-	resizeimg();
+	gscreen = initimg();
 }
 
 // PAL - no palette handling.  Don't intend to either.
@@ -1384,7 +1404,7 @@ mousectl(Cmdbuf *cb)
 void
 mouseset(Point xy)
 {
-#warning mouseset nop
+	LOG(@"mouseset (%d, %d)", xy.x, xy.y);
 	/*
 	CGPoint pnt;
 	drawqlock();

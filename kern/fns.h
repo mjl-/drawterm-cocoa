@@ -58,7 +58,6 @@ ulong		dbgpc(Proc*);
 long		decref(Ref*);
 int		decrypt(void*, void*, int);
 void		delay(int);
-Proc*		dequeueproc(Schedq*, Proc*);
 Chan*		devattach(int, char*);
 Block*		devbread(Chan*, long, ulong);
 long		devbwrite(Chan*, Block*, ulong);
@@ -396,12 +395,12 @@ void		hnputs(void*, ushort);
 uvlong		nhgetv(void*);
 uint		nhgetl(void*);
 ushort		nhgets(void*);
-
-// ulong		µs(void);
+/*
+ulong		µs(void);
 void		_xinc(long*);
 long		_xdec(long*);
 long		lcycles(void);
-
+*/
 ulong	msec(void);
 ulong	ticks(void);
 void osmsleep(int ms);

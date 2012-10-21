@@ -343,48 +343,5 @@ kickscreen(void)
 	int softscreen;
 	
 	attachscreen(&r, &chan, &depth, &width, &softscreen);
+	termreplacescreenimage(gscreen);
 }
-
-#if 0
-static void
-screenwin(void)
-{
-	Point p;
-	char *greet;
-	Memimage *grey;
-
-	drawqlock();
-	back = memwhite;
-	conscol = memblack;
-	memfillcolor(term.screen, 0x444488FF);
-	
-	h = term.font->height;
-
-	window.min = addpt(term.screen->r.min, Pt(20,20));
-	window.max.x = window.min.x + Dx(term.screen->r)*3/4-40;
-	window.max.y = window.min.y + Dy(term.screen->r)*3/4-100;
-
-	memimagedraw(term.screen, window, memblack, ZP, memopaque, ZP, S);
-	window = insetrect(window, 4);
-	memimagedraw(term.screen, window, memwhite, ZP, memopaque, ZP, S);
-
-	/* a lot of work to get a grey color */
-	grey = allocmemimage(Rect(0,0,1,1), CMAP8);
-	grey->flags |= Frepl;
-	grey->clipr = term.screen->r;
-	memfillcolor(grey, 0xAAAAAAFF);
-	memimagedraw(term.screen, Rect(window.min.x, window.min.y,
-			window.max.x, window.min.y+h+5+6), grey, ZP, nil, ZP, S);
-	freememimage(grey);
-	window = insetrect(window, 5);
-
-	greet = " Plan 9 Console ";
-	p = addpt(window.min, Pt(10, 0));
-	memimagestring(term.screen, p, conscol, ZP, term.font, greet);
-	window.min.y += h+6;
-	curpos = window.min;
-	window.max.y = window.min.y+((window.max.y-window.min.y)/h)*h;
-	flushmemscreen(term.screen->r);
-	drawqunlock();
-}
-#endif

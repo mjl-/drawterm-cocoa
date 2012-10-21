@@ -1,6 +1,6 @@
 #include	"u.h"
 #include	"lib.h"
-#include 	"mem.h"
+#include	"mem.h"
 #include	"dat.h"
 #include	"fns.h"
 #include	"error.h"
@@ -11,9 +11,6 @@
 #include	<memlayer.h>
 #include	<cursor.h>
 #include	"screen.h"
-
-#define blankscreen(x)
-#define ishwimage(x) (0)
 
 enum
 {
@@ -209,24 +206,6 @@ static void
 dunlock(void)
 {
 	qunlock(&drawlock);
-}
-
-void
-drawqlock(void)
-{
-	dlock();
-}
-
-int
-drawcanqlock(void)
-{
-	return candlock();
-}
-
-void
-drawqunlock(void)
-{
-	dunlock();
 }
 
 static int
@@ -463,14 +442,6 @@ drawflush(void)
 	if(flushrect.min.x < flushrect.max.x)
 		flushmemscreen(flushrect);
 	flushrect = Rect(10000, 10000, -10000, -10000);
-}
-
-void
-drawflushr(Rectangle r)
-{
-	qlock(&drawlock);
-	flushmemscreen(r);
-	qunlock(&drawlock);
 }
 
 static
@@ -714,8 +685,10 @@ drawfreedimage(DImage *dimage)
 //	if(dimage->image == screenimage)	/* don't free the display */
 //		goto Return;
 	ds = dimage->dscreen;
+	l = dimage->image;
+	dimage->dscreen = nil;	/* paranoia */
+	dimage->image = nil;
 	if(ds){
-		l = dimage->image;
 		if(l->data == screenimage->data)
 			addflush(l->layer->screenr);
 		if(l->layer->refreshfn == drawrefresh)	/* else true owner will clean up */
@@ -727,7 +700,7 @@ drawfreedimage(DImage *dimage)
 			memlfree(l);
 		drawfreedscreen(ds);
 	}else
-		freememimage(dimage->image);
+		freememimage(l);
     Return:
 	free(dimage->fchar);
 	free(dimage);
@@ -2235,11 +2208,70 @@ drawidletime(void)
 	return TK2SEC(msec()/1000 - sdraw.blanktime)/60;
 }
 
+
+/* drawaterm specific */
+
+void
+drawqlock(void)
+{
+	dlock();
+}
+
+int
+drawcanqlock(void)
+{
+	return candlock();
+}
+
+void
+drawqunlock(void)
+{
+	dunlock();
+}
+
+static DImage*
+makenewscreenimage(void)
+{
+	int width, depth;
+	ulong chan;
+	DImage *di;
+	Memdata *md;
+	Memimage *i;
+	Rectangle r;
+
+	md = malloc(sizeof *md);
+	if(md == nil)
+		return nil;
+	md->allocd = 1;
+	md->base = nil;
+	md->bdata = attachscreen(&r, &chan, &depth, &width, &sdraw.softscreen);
+	if(md->bdata == nil){
+		free(md);
+		return nil;
+	}
+	md->ref = 1;
+	i = allocmemimaged(r, chan, md);
+	if(i == nil){
+		free(md);
+		return nil;
+	}
+	i->width = width;
+	i->clipr = r;
+
+	di = allocdimage(i);
+	if(di == nil){
+		freememimage(i);	/* frees md */
+		return nil;
+	}
+	return di;
+}
+
 void
 drawreplacescreenimage(Memimage *m)
 {
 	int i;
 	DImage *di;
+	DName *dn;
 
 	if(screendimage == nil)
 		return;
@@ -2250,6 +2282,7 @@ drawreplacescreenimage(Memimage *m)
 	 * old screen image, so we can't free it just yet.
 	 */
 	drawqlock();
+//	di = makenewscreenimage();
 	di = allocdimage(m);
 	if(di == nil){
 		print("no memory to replace screen image\n");
@@ -2259,18 +2292,29 @@ drawreplacescreenimage(Memimage *m)
 	}
 	
 	/* Replace old screen image in global name lookup. */
+/*
+	dn = drawlookupname(strlen(screenname), screenname);
+	di->next = dn->dimage->next;
+	dn->dimage->next = nil;
+	dn->dimage = di;
+*/
 	for(i=0; i<sdraw.nname; i++){
 		if(sdraw.name[i].dimage == screendimage)
 		if(sdraw.name[i].client == nil){
 			sdraw.name[i].dimage = di;
-			di->name = sdraw.name[i].name;
+			di->vers = ++sdraw.vers;
+//			di->name = sdraw.name[i].name;
 			break;
 		}
 	}
+//	sdraw.client[0]->dimage[0]->fromname = di;
+//	sdraw.client[0]->refreshme = 1;
+//	drawrefreshscreen(di, sdraw.client[0]);
+//	drawuninstallscreen(sdraw.client[0], sdraw.client[0]->cscreen);
 
 	drawfreedimage(screendimage);
 	screendimage = di;
-	screenimage = m;
+	screenimage = screendimage->image;
 
 	/*
 	 * Every client, when it starts, gets a copy of the
@@ -2282,6 +2326,7 @@ drawreplacescreenimage(Memimage *m)
 	 * resolution and pixel format during initialization.
 	 * Silently remove the now-outdated image 0s.
 	 */
+
 	for(i=0; i<sdraw.nclient; i++){
 		if(sdraw.client[i] && !waserror()){
 			drawuninstall(sdraw.client[i], 0);

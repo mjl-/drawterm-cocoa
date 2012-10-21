@@ -25,23 +25,18 @@
 #define	BLOCKALIGN	8
 #define FPalign		16			/* required for FXSAVE */
 
-/*
- * In 32-bit mode, the MAXMACH limit is 32 without
- * changing the way active.machs is defined and used
- * (unfortunately, it is also used in the port code).
- */
-#define	MAXMACH		32			/* max # cpus system can run */
-#define	KSTACK		4096			/* Size of kernel stack */
+#define	MAXMACH		128			/* max # cpus system can run */
+#define	KSTACK		(1024*1024)			/* Size of kernel stack */
 
 /*
  * Time
  */
-#define	HZ		(100)			/* clock frequency */
+#define	HZ		(1000)			/* clock frequency */
 #define	MS2HZ		(1000/HZ)		/* millisec per clock tick */
 #define	TK2SEC(t)	((t)/HZ)		/* ticks to seconds */
 
 /*
- *  Address spaces
+ *  Address spaces - only user code!
  */
 #define	KZERO		0xF0000000		/* base of kernel address space */
 #define	KTZERO		(KZERO+0x100000)	/* first address in kernel text - 9load sits below */

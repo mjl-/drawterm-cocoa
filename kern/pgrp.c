@@ -223,6 +223,7 @@ closefgrp(Fgrp *f)
 			f->fd[i] = nil;
 			cclose(c);
 		}
+//	up->closingfgrp = nil;
 
 	free(f->fd);
 	free(f);

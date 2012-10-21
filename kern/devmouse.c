@@ -1,6 +1,6 @@
 #include	"u.h"
 #include	"lib.h"
-#include 	"mem.h"
+#include	"mem.h"
 #include	"dat.h"
 #include	"fns.h"
 #include	"error.h"
@@ -504,7 +504,7 @@ static void
 mouseclock(void)
 {
 	if(mouse.track){
-		mousetrack(mouse.dx, mouse.dy, mouse.state.buttons, ticks());
+		mousetrack(mouse.dx, mouse.dy, mouse.state.buttons, msec());
 		mouse.track = 0;
 		mouse.dx = 0;
 		mouse.dy = 0;
@@ -616,7 +616,7 @@ mouseputc(Queue *q, int c)
 	USED(q);
 
 	/* Resynchronize in stream with timing. */
-	m = ticks();
+	m = msec();
 	if(TK2SEC(m - lasttick) > 2)
 		nb = 0;
 	lasttick = m;
@@ -630,7 +630,7 @@ mouseputc(Queue *q, int c)
 		newbuttons = b[((msg[0]&7)^7) | (mouseshifted ? 8 : 0)];
 		dx = msg[1]+msg[3];
 		dy = -(msg[2]+msg[4]);
-		mousetrack(dx, dy, newbuttons, ticks());
+		mousetrack(dx, dy, newbuttons, msec());
 		nb = 0;
 	}
 	return 0;

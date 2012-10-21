@@ -343,7 +343,7 @@ pathclose(Path *p)
 	if(p == nil)
 		return;
 //XXX
-	DBG("pathclose %p %s ref=%ld =>", p, p->s, p->ref);
+	DBG("pathclose %p %s ref=%ld =>", p, p->s, p->ref.ref);
 	for(i=0; i<p->mlen; i++)
 		DBG(" %p", p->mtpt[i]);
 	DBG("\n");
@@ -492,7 +492,7 @@ cclose(Chan *c)
 	if(c->flag&CFREE)
 		panic("cclose %#p", getcallerpc(&c));
 
-	DBG("cclose %p name=%s ref=%ld\n", c, c->path->s, c->ref);
+	DBG("cclose %p name=%s ref=%ld\n", c, c->path->s, c->ref.ref);
 	if(decref(&c->ref))
 		return;
 
@@ -683,7 +683,7 @@ cmount(Chan **newp, Chan *old, int flag, char *spec)
 	 *	bind -c /root /
 	 * 
 	 * This is far more complicated than it should be, but I don't
-	 * see an easier way at the moment.		-rsc
+	 * see an easier way at the moment.
 	 */
 	if((flag&MCREATE) && mh && mh->mount
 	&& (mh->mount->next || !(mh->mount->mflag&MCREATE)))
@@ -932,7 +932,7 @@ undomount(Chan *c, Path *path)
 
 	if(path->ref.ref != 1 || path->mlen == 0)
 		print("undomount: path %s ref %ld mlen %d caller %#p\n",
-			path->s, path->ref, path->mlen, getcallerpc(&c));
+			path->s, path->ref.ref, path->mlen, getcallerpc(&c));
 
 	if(path->mlen>0 && (nc=path->mtpt[path->mlen-1]) != nil){
 DBG("undomount %p %s => remove %p\n", path, path->s, nc);

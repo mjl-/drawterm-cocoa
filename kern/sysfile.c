@@ -1,6 +1,6 @@
 #include	"u.h"
 #include	"lib.h"
-#include 	"mem.h"
+#include	"mem.h"
 #include	"dat.h"
 #include	"fns.h"
 #include	"error.h"
@@ -44,8 +44,7 @@ growfd(Fgrp *f, int fd)	/* fd is always >= 0 */
 	if(fd >= f->nfd+DELTAFD)
 		return -1;	/* out of range */
 	/*
-	 * Unbounded allocation is unwise; besides, there are only 16 bits
-	 * of fid in 9P
+	 * Unbounded allocation is unwise
 	 */
 	if(f->nfd >= 5000){
     Exhausted:
@@ -343,9 +342,9 @@ unionread(Chan *c, void *va, long n)
 		mount = mount->next;
 
 	nr = 0;
-	while(mount != nil) {
+	while(mount != nil){
 		/* Error causes component of union to be skipped */
-		if(mount->to && !waserror()) {
+		if(mount->to && !waserror()){
 			if(c->umc == nil){
 				c->umc = cclone(mount->to);
 				c->umc = devtab[c->umc->type]->open(c->umc, OREAD);
@@ -360,7 +359,7 @@ unionread(Chan *c, void *va, long n)
 
 		/* Advance to next element */
 		c->uri++;
-		if(c->umc) {
+		if(c->umc){
 			cclose(c->umc);
 			c->umc = nil;
 		}
@@ -371,49 +370,329 @@ unionread(Chan *c, void *va, long n)
 	return nr;
 }
 
+static void
+unionrewind(Chan *c)
+{
+	qlock(&c->umqlock);
+	c->uri = 0;
+	if(c->umc){
+		cclose(c->umc);
+		c->umc = nil;
+	}
+	qunlock(&c->umqlock);
+}
+
+static int
+dirfixed(uchar *p, uchar *e, Dir *d)
+{
+	int len;
+
+	len = GBIT16(p)+BIT16SZ;
+	if(p + len > e)
+		return -1;
+
+	p += BIT16SZ;	/* ignore size */
+	d->type = devno(GBIT16(p), 1);
+	p += BIT16SZ;
+	d->dev = GBIT32(p);
+	p += BIT32SZ;
+	d->qid.type = GBIT8(p);
+	p += BIT8SZ;
+	d->qid.vers = GBIT32(p);
+	p += BIT32SZ;
+	d->qid.path = GBIT64(p);
+	p += BIT64SZ;
+	d->mode = GBIT32(p);
+	p += BIT32SZ;
+	d->atime = GBIT32(p);
+	p += BIT32SZ;
+	d->mtime = GBIT32(p);
+	p += BIT32SZ;
+	d->length = GBIT64(p);
+
+	return len;
+}
+
+static char*
+dirname(uchar *p, int *n)
+{
+	p += BIT16SZ+BIT16SZ+BIT32SZ+BIT8SZ+BIT32SZ+BIT64SZ
+		+ BIT32SZ+BIT32SZ+BIT32SZ+BIT64SZ;
+	*n = GBIT16(p);
+	return (char*)p+BIT16SZ;
+}
+
+static long
+dirsetname(char *name, int len, uchar *p, long n, long maxn)
+{
+	char *oname;
+	int olen;
+	long nn;
+
+	if(n == BIT16SZ)
+		return BIT16SZ;
+
+	oname = dirname(p, &olen);
+
+	nn = n+len-olen;
+	PBIT16(p, nn-BIT16SZ);
+	if(nn > maxn)
+		return BIT16SZ;
+
+	if(len != olen)
+		memmove(oname+len, oname+olen, p+n-(uchar*)(oname+olen));
+	PBIT16((uchar*)(oname-2), len);
+	memmove(oname, name, len);
+	return nn;
+}
+
+/*
+ * Mountfix might have caused the fixed results of the directory read
+ * to overflow the buffer.  Catch the overflow in c->dirrock.
+ */
+static void
+mountrock(Chan *c, uchar *p, uchar **pe)
+{
+	uchar *e, *r;
+	int len, n;
+
+	e = *pe;
+
+	/* find last directory entry */
+	for(;;){
+		len = BIT16SZ+GBIT16(p);
+		if(p+len >= e)
+			break;
+		p += len;
+	}
+
+	/* save it away */
+	qlock(&c->rockqlock);
+	if(c->nrock+len > c->mrock){
+		n = ROUND(c->nrock+len, 1024);
+		r = smalloc(n);
+		memmove(r, c->dirrock, c->nrock);
+		free(c->dirrock);
+		c->dirrock = r;
+		c->mrock = n;
+	}
+	memmove(c->dirrock+c->nrock, p, len);
+	c->nrock += len;
+	qunlock(&c->rockqlock);
+
+	/* drop it */
+	*pe = p;
+}
+
+/*
+ * Satisfy a directory read with the results saved in c->dirrock.
+ */
+static int
+mountrockread(Chan *c, uchar *op, long n, long *nn)
+{
+	long dirlen;
+	uchar *rp, *erp, *ep, *p;
+
+	/* common case */
+	if(c->nrock == 0)
+		return 0;
+
+	/* copy out what we can */
+	qlock(&c->rockqlock);
+	rp = c->dirrock;
+	erp = rp+c->nrock;
+	p = op;
+	ep = p+n;
+	while(rp+BIT16SZ <= erp){
+		dirlen = BIT16SZ+GBIT16(rp);
+		if(p+dirlen > ep)
+			break;
+		memmove(p, rp, dirlen);
+		p += dirlen;
+		rp += dirlen;
+	}
+
+	if(p == op){
+		qunlock(&c->rockqlock);
+		return 0;
+	}
+
+	/* shift the rest */
+	if(rp != erp)
+		memmove(c->dirrock, rp, erp-rp);
+	c->nrock = erp - rp;
+
+	*nn = p - op;
+	qunlock(&c->rockqlock);
+	return 1;
+}
+
+static void
+mountrewind(Chan *c)
+{
+	c->nrock = 0;
+}
+
+/*
+ * Rewrite the results of a directory read to reflect current 
+ * name space bindings and mounts.  Specifically, replace
+ * directory entries for bind and mount points with the results
+ * of statting what is mounted there.  Except leave the old names.
+ */
+static long
+mountfix(Chan *c, uchar *op, long n, long maxn)
+{
+	char *name;
+	int nbuf, nname;
+	Chan *nc;
+	Mhead *mh;
+	Mount *m;
+	uchar *p;
+	int dirlen, rest;
+	long l;
+	uchar *buf, *e;
+	Dir d;
+
+	p = op;
+	buf = nil;
+	nbuf = 0;
+	for(e=&p[n]; p+BIT16SZ<e; p+=dirlen){
+		dirlen = dirfixed(p, e, &d);
+		if(dirlen < 0)
+			break;
+		nc = nil;
+		mh = nil;
+		if(findmount(&nc, &mh, d.type, d.dev, d.qid)){
+			/*
+			 * If it's a union directory and the original is
+			 * in the union, don't rewrite anything.
+			 */
+			for(m=mh->mount; m; m=m->next)
+				if(eqchantdqid(m->to, d.type, d.dev, d.qid, 1))
+					goto Norewrite;
+
+			name = dirname(p, &nname);
+			/*
+			 * Do the stat but fix the name.  If it fails, leave old entry.
+			 * BUG: If it fails because there isn't room for the entry,
+			 * what can we do?  Nothing, really.  Might as well skip it.
+			 */
+			if(buf == nil){
+				buf = smalloc(4096);
+				nbuf = 4096;
+			}
+			if(waserror())
+				goto Norewrite;
+			l = devtab[nc->type]->stat(nc, buf, nbuf);
+			l = dirsetname(name, nname, buf, l, nbuf);
+			if(l == BIT16SZ)
+				error("dirsetname");
+			poperror();
+
+			/*
+			 * Shift data in buffer to accomodate new entry,
+			 * possibly overflowing into rock.
+			 */
+			rest = e - (p+dirlen);
+			if(l > dirlen){
+				while(p+l+rest > op+maxn){
+					mountrock(c, p, &e);
+					if(e == p){
+						dirlen = 0;
+						goto Norewrite;
+					}
+					rest = e - (p+dirlen);
+				}
+			}
+			if(l != dirlen){
+				memmove(p+l, p+dirlen, rest);
+				dirlen = l;
+				e = p+dirlen+rest;
+			}
+
+			/*
+			 * Rewrite directory entry.
+			 */
+			memmove(p, buf, l);
+
+		    Norewrite:
+			cclose(nc);
+			putmhead(mh);
+		}
+	}
+	if(buf)
+		free(buf);
+
+	if(p != e)
+		error("oops in rockfix");
+
+	return e-op;
+}
+
 static long
 kread(int fd, void *buf, long n, vlong *offp)
 {
-	int dir;
+	long nn, nnn;
+	uchar *p;
 	Chan *c;
 	vlong off;
 
+	p = buf;
 	c = fdtochan(fd, OREAD, 1, 1);
 
-	if(waserror()) {
+	if(waserror()){
 		cclose(c);
 		nexterror();
 	}
 
-	dir = c->qid.type&QTDIR;
 	/*
-	 * The offset is passed through on directories, normally. sysseek complains but
-	 * pread is used by servers and e.g. exportfs that shouldn't need to worry about this issue.
+	 * The offset is passed through on directories, normally.
+	 * Sysseek complains, but pread is used by servers like exportfs,
+	 * that shouldn't need to worry about this issue.
+	 *
+	 * Notice that c->devoffset is the offset that c's dev is seeing.
+	 * The number of bytes read on this fd (c->offset) may be different
+	 * due to rewritings in rockfix.
 	 */
-
 	if(offp == nil)	/* use and maintain channel's offset */
 		off = c->offset;
 	else
 		off = *offp;
-
 	if(off < 0)
 		error(Enegoff);
 
-	if(dir && c->umh)
-		n = unionread(c, buf, n);
-	else
-		n = devtab[c->type]->read(c, buf, n, off);
-
-	if(offp == nil){
-		lock(&c->ref.lk);
-		c->offset += n;
-		unlock(&c->ref.lk);
+	if(off == 0){	/* rewind to the beginning of the directory */
+		if(offp == nil){
+			c->offset = 0;
+			c->devoffset = 0;
+		}
+		mountrewind(c);
+		unionrewind(c);
 	}
+
+	if(c->qid.type & QTDIR){
+		if(mountrockread(c, p, n, &nn)){
+			/* do nothing: mountrockread filled buffer */
+		}else if(c->umh)
+			nn = unionread(c, p, n);
+		else{
+			if(off != c->offset)
+				error(Edirseek);
+			nn = devtab[c->type]->read(c, p, n, c->devoffset);
+		}
+		nnn = mountfix(c, p, nn, n);
+	}else
+		nnn = nn = devtab[c->type]->read(c, p, n, off);
+
+	lock(&c->ref.lk);
+	c->devoffset += nn;
+	c->offset += nnn;
+	unlock(&c->ref.lk);
 
 	poperror();
 	cclose(c);
 
-	return n;
+	return nnn;
 }
 
 /* name conflicts with netbsd
@@ -525,8 +804,10 @@ _sysseek(int fd, vlong off, int whence)
 			error(Eisdir);
 		lock(&c->ref.lk);	/* lock for read/write update */
 		off = off + c->offset;
-		if(off < 0)
+		if(off < 0){
+			unlock(&c->ref.lk);
 			error(Enegoff);
+		}
 		c->offset = off;
 		unlock(&c->ref.lk);
 		break;
@@ -580,6 +861,21 @@ validstat(uchar *s, int n)
 		validname(buf, 0);
 }
 
+static char*
+pathlast(Path *p)
+{
+	char *s;
+
+	if(p == nil)
+		return nil;
+	if(p->len == 0)
+		return nil;
+	s = strrchr(p->s, '/');
+	if(s)
+		return s+1;
+	return p->s;
+}
+
 long
 _sysfstat(int fd, void *buf, long n)
 {
@@ -602,6 +898,7 @@ _sysfstat(int fd, void *buf, long n)
 long
 _sysstat(char *name, void *buf, long n)
 {
+	char *pname;
 	Chan *c;
 	uint l;
 
@@ -614,6 +911,10 @@ _sysstat(char *name, void *buf, long n)
 		nexterror();
 	}
 	l = devtab[c->type]->stat(c, buf, l);
+	pname = pathlast(c->path);
+	if(pname)
+		l = dirsetname(pname, strlen(pname), buf, l, n);
+
 	poperror();
 	cclose(c);
 	return l;
@@ -647,9 +948,14 @@ bindmount(int ismount, int fd, int afd, char* arg0, char* arg1, ulong flag, char
 	if((flag&~MMASK) || (flag&MORDER)==(MBEFORE|MAFTER))
 		error(Ebadarg);
 
-	bogus.flags = flag & MCACHE;
-
 	if(ismount){
+		validaddr((ulong)spec, 1, 0);
+		spec = validnamedup(spec, 1);
+		if(waserror()){
+			free(spec);
+			nexterror();
+		}
+
 		if(up->pgrp->noattach)
 			error(Enoattach);
 
@@ -665,25 +971,18 @@ bindmount(int ismount, int fd, int afd, char* arg0, char* arg1, ulong flag, char
 		if(afd >= 0)
 			ac = fdtochan(afd, ORDWR, 0, 1);
 
+		bogus.flags = flag & MCACHE;
 		bogus.chan = bc;
 		bogus.authchan = ac;
-
-		validaddr((ulong)spec, 1, 0);
 		bogus.spec = spec;
-		if(waserror())
-			error(Ebadspec);
-		validname(spec, 1);
-		poperror();
-
 		ret = devno('M', 0);
 		c0 = devtab[ret]->attach((char*)&bogus);
-
-		poperror();
+		poperror();	/* ac bc */
 		if(ac)
 			cclose(ac);
 		cclose(bc);
 	}else{
-		bogus.spec = 0;
+		spec = 0;
 		validaddr((ulong)arg0, 1, 0);
 		c0 = namec(arg0, Abind, 0, 0);
 	}
@@ -700,15 +999,17 @@ bindmount(int ismount, int fd, int afd, char* arg0, char* arg1, ulong flag, char
 		nexterror();
 	}
 
-	ret = cmount(&c0, c1, flag, bogus.spec);
+	ret = cmount(&c0, c1, flag, spec);
 
 	poperror();
 	cclose(c1);
 	poperror();
 	cclose(c0);
-	if(ismount)
+	if(ismount){
 		fdclose(fd, 0);
-
+		poperror();
+		free(spec);
+	}
 	return ret;
 }
 
@@ -732,35 +1033,26 @@ _sysunmount(char *old, char *new)
 	cmounted = 0;
 
 	cmount = namec(new, Amount, 0, 0);
+	if(waserror()) {
+		cclose(cmount);
+		nexterror();
+	}
 
 	if(old) {
-		if(waserror()) {
-			cclose(cmount);
-			nexterror();
-		}
-		validaddr(old, 1, 0);
 		/*
 		 * This has to be namec(..., Aopen, ...) because
 		 * if arg[0] is something like /srv/cs or /fd/0,
 		 * opening it is the only way to get at the real
 		 * Chan underneath.
 		 */
+		validaddr(old, 1, 0);
 		cmounted = namec(old, Aopen, OREAD, 0);
-		poperror();
 	}
-
-	if(waserror()) {
-		cclose(cmount);
-		if(cmounted)
-			cclose(cmounted);
-		nexterror();
-	}
-
 	cunmount(cmount, cmounted);
+	poperror();
 	cclose(cmount);
 	if(cmounted)
 		cclose(cmounted);
-	poperror();
 	return 0;
 }
 
@@ -771,13 +1063,12 @@ _syscreate(char *name, int mode, ulong perm)
 	Chan *c = 0;
 
 	openmode(mode&~OEXCL);	/* error check only; OEXCL okay here */
-	if(waserror()) {
-		if(c)
-			cclose(c);
-		nexterror();
-	}
 	validaddr(name, 1, 0);
 	c = namec(name, Acreate, mode, perm);
+	if(waserror()) {
+		cclose(c);
+		nexterror();
+	}
 	fd = newfd(c);
 	if(fd < 0)
 		error(Enofd);
@@ -791,6 +1082,14 @@ _sysremove(char *name)
 	Chan *c;
 
 	c = namec(name, Aremove, 0, 0);
+	/*
+	 * Removing mount points is disallowed to avoid surprises
+	 * (which should be removed: the mount point or the mounted Chan?).
+	 */
+	if(c->ismtpt){
+		cclose(c);
+		error(Eismtpt);
+	}
 	if(waserror()){
 		c->type = 0;	/* see below */
 		cclose(c);
@@ -808,20 +1107,29 @@ _sysremove(char *name)
 }
 
 long
-_syswstat(char *name, void *buf, long n)
+_syswstat(char *name, void *d, long nd)
 {
 	Chan *c;
-	uint l;
+	long l;
+	int namelen;
 
-	l = n;
-	validstat(buf, l);
+	validstat(d, l);
 	validaddr(name, 1, 0);
 	c = namec(name, Aaccess, 0, 0);
 	if(waserror()){
 		cclose(c);
 		nexterror();
 	}
-	l = devtab[c->type]->wstat(c, buf, l);
+	if(c->ismtpt){
+		/*
+		 * Renaming mount points is disallowed to avoid surprises
+		 * (which should be renamed? the mount point or the mounted Chan?).
+		 */
+		dirname(d, &namelen);
+		if(namelen)
+			nameerror(chanpath(c), Eismtpt);
+	}
+	l = devtab[c->type]->wstat(c, d, nd);
 	poperror();
 	cclose(c);
 	return l;

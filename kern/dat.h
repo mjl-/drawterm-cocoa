@@ -46,7 +46,6 @@ typedef struct Ref	Ref;
 typedef struct Rendez	Rendez;
 typedef struct Rgrp	Rgrp;
 typedef struct RWlock	RWlock;
-typedef struct Schedq	Schedq;
 typedef struct Segment	Segment;
 typedef struct Sema	Sema;
 typedef struct Session	Session;
@@ -160,6 +159,7 @@ enum
 
 struct Block
 {
+	long 	ref;
 	Block*	next;
 	Block*	list;
 	uchar*	rp;			/* first unconsumed byte */
@@ -512,7 +512,7 @@ struct Fgrp
 enum
 {
 	DELTAFD	= 20,		/* incremental increase in Fgrp.fd's */
-	NERR = 20
+	NERR = 64,
 };
 
 typedef uvlong	Ticks;
