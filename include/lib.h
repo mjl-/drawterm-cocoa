@@ -45,6 +45,9 @@ typedef unsigned int	p9_u32int;
 typedef p9_u32int mpdigit;
 typedef uvlong 	p9_u64int;
 
+typedef uint16_t		uint16;
+typedef uint32_t		uint32;
+
 /* make sure we don't conflict with predefined types */
 #define schar	p9_schar
 #define uchar	p9_uchar
