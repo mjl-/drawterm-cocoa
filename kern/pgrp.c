@@ -1,9 +1,13 @@
 #include	"u.h"
 #include	"lib.h"
-#include 	"mem.h"
+#include	"mem.h"
 #include	"dat.h"
 #include	"fns.h"
 #include	"error.h"
+
+enum {
+	Whinesecs = 10,		/* frequency of out-of-resources printing */
+};
 
 static Ref pgrpid;
 static Ref mountid;
@@ -217,17 +221,49 @@ closefgrp(Fgrp *f)
 	 * If we get into trouble, forceclosefgrp
 	 * will bail us out.
 	 */
-//	up->closingfgrp = f;
+	up->closingfgrp = f;
 	for(i = 0; i <= f->maxfd; i++)
 		if((c = f->fd[i])){
 			f->fd[i] = nil;
 			cclose(c);
 		}
-//	up->closingfgrp = nil;
+	up->closingfgrp = nil;
 
 	free(f->fd);
 	free(f);
 }
+
+/*
+ * Called from sleep because up is in the middle
+ * of closefgrp and just got a kill ctl message.
+ * This usually means that up has wedged because
+ * of some kind of deadly embrace with mntclose
+ * trying to talk to itself.  To break free, hand the
+ * unclosed channels to the close queue.  Once they
+ * are finished, the blocked cclose that we've 
+ * interrupted will finish by itself.
+ */
+void
+forceclosefgrp(void)
+{
+	int i;
+	Chan *c;
+	Fgrp *f;
+
+	if(up->procctl != Proc_exitme || up->closingfgrp == nil){
+		print("bad forceclosefgrp call");
+		return;
+	}
+
+	f = up->closingfgrp;
+	for(i = 0; i <= f->maxfd; i++)
+		if((c = f->fd[i])){
+			f->fd[i] = nil;
+			// ccloseq(c);
+			panic("ccloseq: %r");
+		}
+}
+
 
 Mount*
 newmount(Mhead *mh, Chan *to, int flag, char *spec)
@@ -270,7 +306,7 @@ resrcwait(char *reason)
 	static ulong lastwhine;
 
 	if(up == 0)
-		panic("resrcwait");
+		panic("resrcwait: %s", reason);
 
 	p = up->psstate;
 	if(reason) {
