@@ -282,6 +282,8 @@ makewin(NSSize *s)
 								  styleMask:Winstyle
 									backing:NSBackingStoreBuffered
 									  defer:NO];
+	[w setMinSize:NSMakeSize(320,200)];
+
 	if(!set)
 		[w center];
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
@@ -345,34 +347,27 @@ resizeimg()
 	if(win.img == nil)
 		return;
 
+	[WIN setAcceptsMouseMovedEvents:NO];
+	[win.content setHidden:YES];
 	[win.img release];
 	m = gscreen;
 	gscreen = initimg();
 
-//	if(!mouse.open)
-		termreplacescreenimage(gscreen);
-//	else
-		drawreplacescreenimage(gscreen);
-
-	memimagedraw(gscreen, gscreen->r, memwhite, ZP, memopaque, ZP, S);
-/*
-	if(!mouse.open)
-		termreplacescreenimage(initimg());
-	else {
-	//	drawreplacescreenimage(m);
-		cursoroff(1);
+	termreplacescreenimage(gscreen);
+	if(mouse.open){
+//		drawreplacescreenimage(gscreen);
+//		cursoroff(1);
 		deletescreenimage();
-		if(gscreen)
-			freememimage(gscreen);
-		gscreen = initimg();
 		resetscreenimage();
-//		memimagedraw(gscreen, gscreen->r, memblack, ZP, memopaque, ZP, S);
-//		flushmemscreen(gscreen->r);
-		cursoron(1);
+//		cursoron(1);		
 	}
-*/
 
+/* leak, otherwise a cp /dev/wsys/2/screen /tmp/screen2 fill crash
+	if(m)
+		freememimage(m);
+*/
 	[win.content setHidden:NO];
+	[WIN setAcceptsMouseMovedEvents:YES];
 	sendmouse();
 }
 
@@ -833,7 +828,6 @@ updatecursor(void)
 		c = [NSCursor arrowCursor];
 	[NSCursor pop];
 	[c push];
-//	[c set];
 
 	/*
 	 * Without this trick, we can come back from the dock
@@ -957,48 +951,6 @@ getgesture(NSEvent *e)
 }
 
 static void sendclick(NSUInteger);
-
-#if 0
-void
-mousetrack(int x, int y, int b, int ms)
-{
-	Mousestate mstate;
-	int lastb;
-	
-	if(x < mouserect.min.x)
-		x = mouserect.min.x;
-	if(x > mouserect.max.x)
-		x = mouserect.max.x;
-	if(y < mouserect.min.y)
-		y = mouserect.min.y;
-	if(y > mouserect.max.y)
-		y = mouserect.max.y;
-
-	lock(&mouse.lk);
-	mstate = mouse.state;
-	lastb = mstate.buttons;
-	mstate.xy = Pt(x, y);
-	mstate.buttons = b|in.kbuttons;
-	mouse.redraw = 1;
-	mstate.counter++;
-	mstate.msec = ms;
-
-	/*
-	 * if the queue fills, we discard the entire queue and don't
-	 * queue any more events until a reader polls the mouse.
-	 */
-	if(!mouse.qfull && lastb != b) {	/* add to ring */
-		mouse.queue[mouse.wi] = mouse.state;
-		if(++mouse.wi == nelem(mouse.queue))
-			mouse.wi = 0;
-		if(mouse.wi == mouse.ri)
-			mouse.qfull = 1;
-	}
-
-	unlock(&mouse.lk);
-	wakeup(&mouse.r);
-}
-#endif
 
 static void
 gettouch(NSEvent *e, int type)

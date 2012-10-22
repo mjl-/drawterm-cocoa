@@ -56,7 +56,7 @@ terminit(void)
 	grey = allocmemimage(Rect(0,0,1,1), CMAP8);
 	grey->flags |= Frepl;
 	grey->clipr = Rect(-100000, -100000, 100000, 100000);
-	memfillcolor(grey, 0x770000FF);
+	memfillcolor(grey, 0x777777FF);
 	term.grey = grey;
 
 	term.flushr = Rect(0, 0, 0, 0);
