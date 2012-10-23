@@ -86,8 +86,7 @@ void	drawqlock(void);
 void	drawqunlock(void);
 int	drawcanqlock(void);
 
-extern void drawreplacescreenimage(Memimage*);
-//extern void drawreplacescreenimage(void);
+extern void drawreplacescreenimage(void);
 
 #define ishwimage(x) (0)
 

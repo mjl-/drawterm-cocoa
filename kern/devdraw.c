@@ -685,10 +685,8 @@ drawfreedimage(DImage *dimage)
 //	if(dimage->image == screenimage)	/* don't free the display */
 //		goto Return;
 	ds = dimage->dscreen;
-	l = dimage->image;
-	dimage->dscreen = nil;	/* paranoia */
-	dimage->image = nil;
 	if(ds){
+		l = dimage->image;
 		if(l->data == screenimage->data)
 			addflush(l->layer->screenr);
 		if(l->layer->refreshfn == drawrefresh)	/* else true owner will clean up */
@@ -700,7 +698,7 @@ drawfreedimage(DImage *dimage)
 			memlfree(l);
 		drawfreedscreen(ds);
 	}else
-		freememimage(l);
+		freememimage(dimage->image);
     Return:
 	free(dimage->fchar);
 	free(dimage);
@@ -2197,7 +2195,7 @@ drawactive(int active)
 		drawblankscreen(0);
 		sdraw.blanktime = msec()/1000;
 	}else{
-		if(blanktime && sdraw.blanktime && TK2SEC(msec()/1000 - sdraw.blanktime)/60 >= blanktime)
+		if(blanktime && sdraw.blanktime && TK2SEC(msec()/1000- sdraw.blanktime)/60 >= blanktime)
 			drawblankscreen(1);
 	}
 }
@@ -2205,7 +2203,7 @@ drawactive(int active)
 int
 drawidletime(void)
 {
-	return TK2SEC(msec()/1000 - sdraw.blanktime)/60;
+	return TK2SEC(msec()/1000- sdraw.blanktime)/60;
 }
 
 
@@ -2229,59 +2227,55 @@ drawqunlock(void)
 	dunlock();
 }
 
+#define DBG if(drawdebug)printf
+
 void
-drawreplacescreenimage(Memimage *m)
+drawreplacescreenimage(void)
 {
-	int i;
-	DImage *di;
+	DScreen *s;
+	DName *dn;
+	DImage *di, *odi;
+	Memimage *m, *om;
 
-	if(screendimage == nil)
-		return;
+	/* save the pointers for future checks to replace the screen buffer */
+	odi = screendimage;
+	om = screenimage;
 
-	/*
-	 * Replace the screen image because the screen
-	 * was resized.  Clients still have references to the
-	 * old screen image, so we can't free it just yet.
-	 */
-	drawqlock();
-	di = allocdimage(m);
-	if(di == nil){
-		print("no memory to replace screen image\n");
-		freememimage(m);
-		drawqunlock();
-		return;
-	}
-	
-	/* Replace old screen image in global name lookup. */
-	for(i=0; i<sdraw.nname; i++){
-		if(sdraw.name[i].dimage == screendimage)
-		if(sdraw.name[i].client == nil){
-			sdraw.name[i].dimage = di;
-			break;
-		}
-	}
+	dn = drawlookupname(strlen(screenname), screenname);
+	m = screenimage;
+	DBG("%s: (%d, %d) 0x%x -> 0x%x\n", dn->name, Dx(m->r), Dy(m->r),
+		screendimage, screenimage);
 
-	drawfreedimage(screendimage);
-	screendimage = di;
-	screenimage = screendimage->image;
+	/* Use devdraw functions to replacee the screen. */
+	deletescreenimage();
+	resetscreenimage();
+
+	dn = drawlookupname(strlen(screenname), screenname);
+	m = screenimage;
+	DBG("%s: (%d, %d) 0x%x -> 0x%x\n", dn->name, Dx(m->r), Dy(m->r),
+		screendimage, screenimage);
 
 	/*
-	 * Every client, when it starts, gets a copy of the
-	 * screen image as image 0.  Clients only use it 
-	 * for drawing if there is no /dev/winname, but
-	 * this /dev/draw provides a winname (early ones
-	 * didn't; winname originated in rio), so the
-	 * image only ends up used to find the screen
-	 * resolution and pixel format during initialization.
-	 * Silently remove the now-outdated image 0s.
+	 * Iterate over the screen images to replace the images with backing
+	 * store provided through attachscreen().
 	 */
-	for(i=0; i<sdraw.nclient; i++){
-		if(sdraw.client[i] && !waserror()){
-			drawuninstall(sdraw.client[i], 0);
-			poperror();
+	s = dscreen;
+	while(s){
+		DBG("dscreen: 0x%x\n", s);
+		if(s->dimage){
+			DBG("    dimage: 0x%x -> 0x%x\n", s->dimage, s->dimage->image);
+			if(s->dimage == odi)
+				s->dimage = screendimage;			
+			if(s->dimage->image == om)
+				s->dimage->image = screenimage;			
 		}
+		if(s->screen && s->screen->image){
+			DBG("  memimage: 0x%x\n", s->screen->image);
+			if(s->screen->image == om)
+				s->screen->image = screenimage;
+		}
+		s = s->next;
 	}
 
-	drawqunlock();
 	mouseresize();
 }
