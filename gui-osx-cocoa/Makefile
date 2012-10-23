@@ -7,7 +7,7 @@ OFILES=\
 	cload.$O\
 	load.$O\
 	mouseswap.$O\
-	screen-cocoa.$O\
+	screen.$O\
 	main-cocoa.$O
 
 default: $(LIB)

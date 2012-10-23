@@ -116,6 +116,11 @@ void _flushmemscreen(Rectangle r);
 	initcpu();
 }
 
+- (void)applicationWillTerminate:(NSNotification *)note
+{
+#warning stuff in shutdown code
+}
+
 - (void)windowDidBecomeKey:(id)arg
 {
 	getmousepos();
@@ -302,7 +307,7 @@ makewin(NSSize *s)
 		[win.ofs[i] setDisplaysWhenScreenProfileChanges:NO];
 	}
 	win.isofs = 0;
-	win.content = [contentview new];
+	win.content = [[contentview alloc] initWithFrame:r];
 	[WIN setContentView:win.content];
 }
 
@@ -334,6 +339,7 @@ initimg(void)
 			bytesPerRow:bytesperline(r, 32)
 			bitsPerPixel:32];
 
+	i->data->ref++;		/* hold onto Memdata for later freemimage */
 	return i;
 }
 
@@ -347,27 +353,21 @@ resizeimg()
 	if(win.img == nil)
 		return;
 
-	[WIN setAcceptsMouseMovedEvents:NO];
-	[win.content setHidden:YES];
-	[win.img release];
 	m = gscreen;
+
+	[win.img release];
 	gscreen = initimg();
 
 	termreplacescreenimage(gscreen);
-	if(mouse.open){
-//		drawreplacescreenimage(gscreen);
-//		cursoroff(1);
-		deletescreenimage();
-		resetscreenimage();
-//		cursoron(1);		
-	}
+	drawreplacescreenimage();
 
-/* leak, otherwise a cp /dev/wsys/2/screen /tmp/screen2 fill crash
+/* leak, otherwise a cp /dev/wsys/2/screen /tmp/screen2 fill crash */
 	if(m)
 		freememimage(m);
-*/
+
+//	flushmemscreen(gscreen->r);
 	[win.content setHidden:NO];
-	[WIN setAcceptsMouseMovedEvents:YES];
+
 	sendmouse();
 }
 
@@ -436,17 +436,18 @@ flushimg(NSRect rect)
 		return;
 	}
 
-/*
 	if(win.needimg){
+		/*
 		if(!NSEqualSizes(rect.size, [win.img size])){
 			LOG(@"flushimg reject %.0f %.0f", rect.size.width, rect.size.height);
 			[win.content unlockFocus];
 			return;
 		}
+		*/
 		win.needimg = 0;
 	}else
 		win.deferflush = 1;
-*/
+
 	LOG(@"flushimg ok %.0f %.0f", rect.size.width, rect.size.height);
 
 
@@ -1269,8 +1270,7 @@ makecursor(Cursor *c)
 	int b;
 	uchar *plane[5];
 
-	r = [[NSBitmapImageRep alloc]
-		initWithBitmapDataPlanes:nil
+	r = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL
 		pixelsWide:16
 		pixelsHigh:16
 		bitsPerSample:1
