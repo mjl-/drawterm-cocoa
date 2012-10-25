@@ -5,19 +5,6 @@
 #include	"fns.h"
 #include	"error.h"
 
-#include	"user.h"
-#undef open
-#undef mount
-#undef read
-#undef write
-#undef seek
-#undef stat
-#undef wstat
-#undef remove
-#undef close
-#undef fstat
-#undef fwstat
-
 /*
  * The sys*() routines needn't poperror() as they return directly to syscall().
  */
@@ -44,7 +31,8 @@ growfd(Fgrp *f, int fd)	/* fd is always >= 0 */
 	if(fd >= f->nfd+DELTAFD)
 		return -1;	/* out of range */
 	/*
-	 * Unbounded allocation is unwise
+	 * Unbounded allocation is unwise; besides, there are only 16 bits
+	 * of fid in 9P
 	 */
 	if(f->nfd >= 5000){
     Exhausted:
@@ -274,12 +262,12 @@ _sysopen(char *name, int mode)
 	Chan *c = 0;
 
 	openmode(mode);	/* error check only */
+	c = namec(name, Aopen, mode, 0);
 	if(waserror()){
 		if(c)
 			cclose(c);
 		nexterror();
 	}
-	c = namec(name, Aopen, mode, 0);
 	fd = newfd(c);
 	if(fd < 0)
 		error(Enofd);
@@ -632,6 +620,7 @@ mountfix(Chan *c, uchar *op, long n, long maxn)
 static long
 kread(int fd, void *buf, long n, vlong *offp)
 {
+	int dir;
 	long nn, nnn;
 	uchar *p;
 	Chan *c;
@@ -670,19 +659,19 @@ kread(int fd, void *buf, long n, vlong *offp)
 		unionrewind(c);
 	}
 
-	if(c->qid.type & QTDIR){
-		if(mountrockread(c, p, n, &nn)){
-			/* do nothing: mountrockread filled buffer */
-		}else if(c->umh)
+	dir = c->qid.type&QTDIR;
+	if(dir && mountrockread(c, p, n, &nn)){
+		/* do nothing: mountrockread filled buffer */
+	}else{
+		if(dir && c->umh)
 			nn = unionread(c, p, n);
-		else{
-			if(off != c->offset)
-				error(Edirseek);
-			nn = devtab[c->type]->read(c, p, n, c->devoffset);
-		}
+		else
+			nn = devtab[c->type]->read(c, p, n, off);
+	}
+	if(dir)
 		nnn = mountfix(c, p, nn, n);
-	}else
-		nnn = nn = devtab[c->type]->read(c, p, n, off);
+	else
+		nnn = nn;
 
 	lock(&c->ref.lk);
 	c->devoffset += nn;
@@ -706,7 +695,7 @@ _sys_read(int fd, void *buf, long n)
 long
 _syspread(int fd, void *buf, long n, vlong off)
 {
-	if(off == ((uvlong) ~0))
+	if(off == ~0ULL)
 		return kread(fd, buf, n, nil);
 	return kread(fd, buf, n, &off);
 }
@@ -717,6 +706,7 @@ kwrite(int fd, void *buf, long nn, vlong *offp)
 	Chan *c;
 	long m, n;
 	vlong off;
+	uchar *p;
 
 	n = 0;
 	c = fdtochan(fd, OWRITE, 1, 1);
@@ -769,7 +759,7 @@ sys_write(int fd, void *buf, long n)
 long
 _syspwrite(int fd, void *buf, long n, vlong off)
 {
-	if(off == ((uvlong) ~0))
+	if(off == ~0ULL)
 		return kwrite(fd, buf, n, nil);
 	return kwrite(fd, buf, n, &off);
 }
@@ -948,14 +938,9 @@ bindmount(int ismount, int fd, int afd, char* arg0, char* arg1, ulong flag, char
 	if((flag&~MMASK) || (flag&MORDER)==(MBEFORE|MAFTER))
 		error(Ebadarg);
 
-	if(ismount){
-		validaddr((ulong)spec, 1, 0);
-		spec = validnamedup(spec, 1);
-		if(waserror()){
-			free(spec);
-			nexterror();
-		}
+	bogus.flags = flag & MCACHE;
 
+	if(ismount){
 		if(up->pgrp->noattach)
 			error(Enoattach);
 
@@ -971,19 +956,31 @@ bindmount(int ismount, int fd, int afd, char* arg0, char* arg1, ulong flag, char
 		if(afd >= 0)
 			ac = fdtochan(afd, ORDWR, 0, 1);
 
-		bogus.flags = flag & MCACHE;
 		bogus.chan = bc;
 		bogus.authchan = ac;
+
 		bogus.spec = spec;
+		if(waserror())
+			error(Ebadspec);
+		spec = validnamedup(spec, 1);
+		poperror();
+		
+		if(waserror()){
+			free(spec);
+			nexterror();
+		}
+
 		ret = devno('M', 0);
 		c0 = devtab[ret]->attach((char*)&bogus);
+
+		poperror();	/* spec */
+		free(spec);
 		poperror();	/* ac bc */
 		if(ac)
 			cclose(ac);
 		cclose(bc);
 	}else{
-		spec = 0;
-		validaddr((ulong)arg0, 1, 0);
+		bogus.spec = 0;
 		c0 = namec(arg0, Abind, 0, 0);
 	}
 
@@ -992,24 +989,21 @@ bindmount(int ismount, int fd, int afd, char* arg0, char* arg1, ulong flag, char
 		nexterror();
 	}
 
-	validaddr((ulong)arg1, 1, 0);
 	c1 = namec(arg1, Amount, 0, 0);
 	if(waserror()){
 		cclose(c1);
 		nexterror();
 	}
 
-	ret = cmount(&c0, c1, flag, spec);
+	ret = cmount(&c0, c1, flag, bogus.spec);
 
 	poperror();
 	cclose(c1);
 	poperror();
 	cclose(c0);
-	if(ismount){
+	if(ismount)
 		fdclose(fd, 0);
-		poperror();
-		free(spec);
-	}
+
 	return ret;
 }
 
@@ -1045,14 +1039,22 @@ _sysunmount(char *old, char *new)
 		 * opening it is the only way to get at the real
 		 * Chan underneath.
 		 */
-		validaddr(old, 1, 0);
 		cmounted = namec(old, Aopen, OREAD, 0);
+		poperror();
 	}
+
+	if(waserror()) {
+		cclose(cmount);
+		if(cmounted)
+			cclose(cmounted);
+		nexterror();
+	}
+
 	cunmount(cmount, cmounted);
-	poperror();
 	cclose(cmount);
 	if(cmounted)
 		cclose(cmounted);
+	poperror();
 	return 0;
 }
 
@@ -1063,12 +1065,13 @@ _syscreate(char *name, int mode, ulong perm)
 	Chan *c = 0;
 
 	openmode(mode&~OEXCL);	/* error check only; OEXCL okay here */
-	validaddr(name, 1, 0);
-	c = namec(name, Acreate, mode, perm);
 	if(waserror()) {
-		cclose(c);
+		if(c)
+			cclose(c);
 		nexterror();
 	}
+	validaddr(name, 1, 0);
+	c = namec(name, Acreate, mode, perm);
 	fd = newfd(c);
 	if(fd < 0)
 		error(Enofd);
@@ -1106,16 +1109,12 @@ _sysremove(char *name)
 	return 0;
 }
 
-long
-_syswstat(char *name, void *d, long nd)
+static long
+wstat(Chan *c, uchar *d, int nd)
 {
-	Chan *c;
 	long l;
 	int namelen;
 
-	validstat(d, l);
-	validaddr(name, 1, 0);
-	c = namec(name, Aaccess, 0, 0);
 	if(waserror()){
 		cclose(c);
 		nexterror();
@@ -1136,6 +1135,19 @@ _syswstat(char *name, void *d, long nd)
 }
 
 long
+_syswstat(char *name, void *d, long nd)
+{
+	Chan *c;
+	uint l;
+	int namelen;
+
+	l = nd;
+	validstat(d, l);
+	c = namec(name, Aaccess, 0, 0);
+	return wstat(c, (uchar*)d, l);
+}
+
+long
 _sysfwstat(int fd, void *buf, long n)
 {
 	Chan *c;
@@ -1145,14 +1157,7 @@ _sysfwstat(int fd, void *buf, long n)
 	validaddr(buf, l, 0);
 	validstat(buf, l);
 	c = fdtochan(fd, -1, 1, 1);
-	if(waserror()) {
-		cclose(c);
-		nexterror();
-	}
-	l = devtab[c->type]->wstat(c, buf, l);
-	poperror();
-	cclose(c);
-	return l;
+	return wstat(c, (uchar*)buf, l);
 }
 
 

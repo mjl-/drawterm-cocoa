@@ -364,9 +364,9 @@ resizeimg()
 	gscreen = initimg();
 
 	termreplacescreenimage(gscreen);
-//	drawreplacescreenimage();
+	drawreplacescreenimage();
 //	drawreplacememdata();
-	_drawreplacescreenimage(gscreen);
+//	_drawreplacescreenimage(gscreen);
 	/* leak, otherwise a cp /dev/wsys/2/screen /tmp/screen2 fill crash */
 	if(m){
 		freememimage(m);		
