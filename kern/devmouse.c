@@ -296,11 +296,8 @@ mouseread(Chan *c, void *va, long n, vlong off)
 			n = 1+4*12;
 		if(mouse.lastresize != mouse.resize){
 			mouse.lastresize = mouse.resize;
-			sprint(buf, "r -dx %d -dy %d %11d %11lud ", Dx(gscreen->r), Dy(gscreen->r),
-			b,
-			m.msec);
+			buf[0] = 'r';
 printf("Twrite->  mouse: %s", buf);
-//			buf[0] = 'r';
 		}
 		memmove(va, buf, n);
 		return n;

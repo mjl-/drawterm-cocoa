@@ -34,7 +34,7 @@ extern ulong	msec(void);
 extern Cursorinfo cursor;
 extern int mousequeue;
 
-#define LOG	if(1)NSLog
+#define LOG	if(0)NSLog
 
 int usegestures = 0;
 int useliveresizing = 0;
@@ -357,22 +357,23 @@ resizeimg()
 	if(win.img == nil)
 		return;
 
+	[win.content setHidden:YES];		/* prevent flushimg from drawing */
 	m = gscreen;
 
 	[win.img release];
 	gscreen = initimg();
 
 	termreplacescreenimage(gscreen);
-	drawreplacescreenimage();
+//	drawreplacescreenimage();
 //	drawreplacememdata();
-//	_drawreplacescreenimage(gscreen);
+	_drawreplacescreenimage(gscreen);
 	/* leak, otherwise a cp /dev/wsys/2/screen /tmp/screen2 fill crash */
 	if(m){
 		freememimage(m);		
 	}
 
 //	flushmemscreen(gscreen->r);
-	[win.content setHidden:NO];
+	[win.content setHidden:NO];			/* reenable the flush */
 
 	sendmouse();
 }

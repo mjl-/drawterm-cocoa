@@ -5,14 +5,6 @@
 #define wakeup	kwakeup
 #define strtod		fmtstrtod
 
-/*
- * one-of-a-kind
- */
-enum
-{
-	PNPROC		= 1,
-	PNGROUP		= 2,
-};
 
 /* conflicts on some os's */
 #define encrypt	libencrypt
