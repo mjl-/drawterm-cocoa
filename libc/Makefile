@@ -60,7 +60,6 @@ UTFOFILES=\
 	utfutf.$O\
 
 9SYSOFILES=\
-	abort.$O\
 	announce.$O\
 	convD2M.$O\
 	convM2D.$O\
@@ -70,6 +69,7 @@ UTFOFILES=\
 	dirfstat.$O\
 	dirfwstat.$O\
 	dirmodefmt.$O\
+	dirread.$O\
 	dirstat.$O\
 	dirwstat.$O\
 	fcallfmt.$O\

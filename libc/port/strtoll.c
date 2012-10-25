@@ -1,18 +1,22 @@
 #include <u.h>
 #include <libc.h>
-#define VLONG_MAX	((vlong)~(((uvlong)1)<<63))
-#define VLONG_MIN	((vlong)(((uvlong)1)<<63))
+
+#define VLONG_MAX	~(1LL<<63)
+#define VLONG_MIN	(1LL<<63)
+
 vlong
-strtoll(const char *nptr, char **endptr, int base)
+strtoll(char *nptr, char **endptr, int base)
 {
 	char *p;
 	vlong n, nn, m;
 	int c, ovfl, v, neg, ndig;
-	p = (char*)nptr;
+
+	p = nptr;
 	neg = 0;
 	n = 0;
 	ndig = 0;
 	ovfl = 0;
+
 	/*
 	 * White space
 	 */
@@ -28,12 +32,14 @@ strtoll(const char *nptr, char **endptr, int base)
 		}
 		break;
 	}
+
 	/*
 	 * Sign
 	 */
 	if(*p=='-' || *p=='+')
 		if(*p++ == '-')
 			neg = 1;
+
 	/*
 	 * Base
 	 */
@@ -53,6 +59,7 @@ strtoll(const char *nptr, char **endptr, int base)
 	} else
 	if(base<0 || 36<base)
 		goto Return;
+
 	/*
 	 * Non-empty sequence of digits
 	 */
@@ -77,9 +84,10 @@ strtoll(const char *nptr, char **endptr, int base)
 			ovfl = 1;
 		n = nn;
 	}
+
 Return:
 	if(ndig == 0)
-		p = (char*)nptr;
+		p = nptr;
 	if(endptr)
 		*endptr = p;
 	if(ovfl){
