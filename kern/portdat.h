@@ -29,7 +29,6 @@ typedef struct Perf	Perf;
 typedef struct PhysUart	PhysUart;
 typedef struct Pgrp	Pgrp;
 typedef struct Physseg	Physseg;
-typedef struct Proc	Proc;
 typedef struct Pte	Pte;
 typedef struct Queue	Queue;
 typedef struct Ref	Ref;
@@ -51,6 +50,10 @@ typedef int    Devgen(Chan*, char*, Dirtab*, int, int, Dir*);
 
 #include "fcall.h"
 
+#ifndef KMESGSIZE
+#define KMESGSIZE (16*1024)
+#endif
+
 struct Ref
 {
 	Lock lk;
@@ -62,6 +65,7 @@ struct Rendez
 	Lock lk;
 	Proc	*p;
 };
+
 
 struct RWlock	/* changed from kernel */
 {
@@ -97,6 +101,7 @@ enum
 
 	COPEN	= 0x0001,		/* for i/o */
 	CMSG	= 0x0002,		/* the message channel for a mount */
+//rsc	CCREATE	= 0x0004,		/* permits creation if c->mnt */
 	CCEXEC	= 0x0008,		/* close on exec */
 	CFREE	= 0x0010,		/* not in use */
 	CRCLOSE	= 0x0020,		/* remove on close */
@@ -633,6 +638,18 @@ struct Proc
 
 	Proc		*qnext;
 
+	Note	note[NNOTE];
+	short	nnote;
+	short	notified;	/* sysnoted is due */
+	Note	lastnote;
+	int	(*notify)(void*, char*);
+
+	Lock	*lockwait;
+	Lock	*lastlock;	/* debugging */
+	Lock	*lastilock;	/* debugging */
+
+	Ref	nlocks;		/* number of locks held by proc */
+
 	void	(*fn)(void*);
 	void *arg;
 
@@ -742,7 +759,7 @@ struct PhysUart
 };
 
 enum {
-	Stagesize=	2048
+	Stagesize=	STAGESIZE
 };
 
 /*

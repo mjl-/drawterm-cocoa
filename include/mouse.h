@@ -1,6 +1,5 @@
 #pragma src "/sys/src/libdraw"
 
-typedef struct	Channel Channel;
 typedef struct	Menu Menu;
 typedef struct 	Mousectl Mousectl;
 

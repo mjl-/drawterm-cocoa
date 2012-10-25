@@ -2,18 +2,25 @@
 #import "screen-cocoa.h"
 
 #include "u.h"
-#include "lib.h"
+#include "libc.h"
 #include "kern/mem.h"
 #include "kern/dat.h"
-#include "kern/fns.h"
 #include "user.h"
 
 #include "drawterm.h"
 
+/* symbols from fns.h that do not need the rest brought in */
+extern void		chandevinit(void);
+extern void		chandevreset(void);
+extern int errfmt(Fmt*);
+extern void	osinit(void);
+extern void		printinit(void);
+extern void		procinit0(void);
+extern void	screeninit(void);
+extern	void	terminit(void);
+
 char *argv0;
 char *user;
-
-extern int errfmt(Fmt*);
 
 static int threadargc;
 static char **threadargv;

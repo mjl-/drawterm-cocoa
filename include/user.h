@@ -84,8 +84,6 @@ extern	int	errstr(char*, uint);
 extern	int	rerrstr(char*, uint);
 extern	int	encrypt(void*, void*, int);
 extern	int	decrypt(void*, void*, int);
-extern	void	qlock(QLock*);
-extern	void	qunlock(QLock*);
 extern	vlong	nsec(void);
 extern	void	lock(Lock*);
 extern	void	unlock(Lock*);

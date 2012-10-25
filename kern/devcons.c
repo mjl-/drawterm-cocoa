@@ -21,12 +21,6 @@ int	iprintscreenputs = 0;
 
 int	panicking;
 
-struct
-{
-	int exiting;
-	int machs;
-} active;
-
 static struct
 {
 	QLock lk;
@@ -46,18 +40,9 @@ static struct
 	char	*ir;
 	char	*ie;
 } kbd = {
-	{ 0 },
-	0,
-	0,
-	0,
-	{ 0 },
-	0,
-	0,
-	{ 0 },
-	{ 0 },
-	kbd.istage,
-	kbd.istage,
-	kbd.istage + sizeof(kbd.istage),
+	.iw	= kbd.istage,
+	.ir	= kbd.istage,
+	.ie	= kbd.istage + sizeof(kbd.istage),
 };
 
 char	*sysname;

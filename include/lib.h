@@ -19,7 +19,6 @@ enum
 #define decrypt libdecrypt
 #define oserror	liboserror
 #define clone	libclone
-#define atexit	libatexit
 #define log2	liblog2
 #define log	liblog
 #define reboot	libreboot
@@ -63,7 +62,6 @@ typedef uint32_t		uint32;
 #define vlong	p9_vlong
 #define uvlong	p9_uvlong
 
-#define	nelem(x)	(sizeof(x)/sizeof((x)[0]))
 #define SET(x)		((x)=0)
 #define	USED(x)		if(x);else
 
@@ -132,14 +130,6 @@ typedef struct Lock
 #endif
 } Lock;
 
-typedef struct QLock
-{
-	Lock	lk;
-	struct Proc	*hold;
-	struct Proc	*first;
-	struct Proc	*last;
-} QLock;
-
 typedef
 struct Qid
 {
@@ -184,7 +174,22 @@ extern	char*	strecpy(char*, char*, char*);
 extern	int	tokenize(char*, char**, int);
 extern	int	getfields(char*, char**, int, int, char*);
 extern	char*	utfecpy(char*, char*, char*);
+
 extern	long	tas(long*);
+
+typedef
+struct QLock
+{
+	Lock	lk;
+	struct Proc	*hold;
+	struct Proc	*first;
+	struct Proc	*last;
+} QLock;
+
+extern	void	qlock(QLock*);
+extern	void	qunlock(QLock*);
+extern	int	canqlock(QLock*);
+
 extern	void	quotefmtinstall(void);
 
 extern	int	dec64(uchar*, int, char*, int);

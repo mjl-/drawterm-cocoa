@@ -190,6 +190,15 @@ static	char Eoldname[] =	"named image no longer valid";
 static	char Enamed[] = 	"image already has name";
 static	char Ewrongname[] = 	"wrong name for image";
 
+void
+dumpimage(DImage *m)
+{
+	if(m){
+		printf("dimage [%p] id:%d ref:%d", m, m->id, m->ref);
+		printf(" memimage [%p] (%d, %d)\n", m->image, Dx(m->image->r), Dy(m->image->r));
+	}
+}
+
 static void
 dlock(void)
 {
@@ -488,9 +497,12 @@ DImage*
 drawlookup(Client *client, int id, int checkname)
 {
 	DImage *d;
+	DName *n;
 
+printf("drawlookup: id=%d\n", id);
 	d = client->dimage[id&HASHMASK];
 	while(d){
+		dumpimage(d);
 		if(d->id == id){
 			if(checkname && !drawgoodname(d))
 				error(Eoldname);
@@ -498,7 +510,12 @@ drawlookup(Client *client, int id, int checkname)
 		}
 		d = d->next;
 	}
-	return 0;
+	if(id == 0){
+		n = drawlookupname(strlen(screenname), screenname);
+		if(n)
+			d = n->dimage;
+	}
+	return d;
 }
 
 DScreen*
@@ -562,6 +579,8 @@ drawinstall(Client *client, int id, Memimage *i, DScreen *dscreen)
 	d->dscreen = dscreen;
 	d->next = client->dimage[id&HASHMASK];
 	client->dimage[id&HASHMASK] = d;
+printf("drawinstall: cl=%p ds=%p id=%d\n", client, dscreen, id);
+	dumpimage(d);
 	return i;
 }
 
@@ -613,6 +632,8 @@ drawinstallscreen(Client *client, DScreen *d, int id, DImage *dimage, DImage *df
 	d->ref++;
 	c->next = client->cscreen;
 	client->cscreen = c;
+printf("drawinstallscreen: cl=%p scr=%p id=%d\n", client, d, id);
+	dumpimage(dimage);
 	return d->screen;
 }
 
@@ -665,6 +686,9 @@ drawfreedimage(DImage *dimage)
 	int i;
 	Memimage *l;
 	DScreen *ds;
+
+printf("drawfreedimage: ");
+dumpimage(dimage);
 
 	dimage->ref--;
 	if(dimage->ref < 0)
@@ -2227,33 +2251,50 @@ drawqunlock(void)
 	dunlock();
 }
 
-#define DBG if(drawdebug)printf
+#define DBG if(1)printf
 
 void
 drawreplacescreenimage(void)
 {
 	DScreen *s;
-	DName *dn;
+	DName *dn, *odn;
 	DImage *di, *odi;
 	Memimage *m, *om;
+	int i, id;
 
+	dlock();
 	/* save the pointers for future checks to replace the screen buffer */
 	odi = screendimage;
 	om = screenimage;
+	id = odi->id;
 
-	dn = drawlookupname(strlen(screenname), screenname);
+	odn = drawlookupname(strlen(screenname), screenname);
 	m = screenimage;
-	DBG("%s: (%d, %d) 0x%x -> 0x%x\n", dn->name, Dx(m->r), Dy(m->r),
-		screendimage, screenimage);
+	DBG("%s: (%d, %d) %p -> %p\n", odn->name, Dx(m->r), Dy(m->r),
+		screendimage, m);
+
+	for(i=0; i<sdraw.nclient; i++){
+		if(sdraw.client[i] && !waserror()){
+			drawuninstall(sdraw.client[i], id);
+			poperror();
+		}
+	}
+	dunlock();
 
 	/* Use devdraw functions to replacee the screen. */
 	deletescreenimage();
+	memimagedraw(gscreen, gscreen->r, memblack, ZP, nil, ZP, S);
+	flushmemscreen(gscreen->r);
 	resetscreenimage();
 
+//	mouseresize();
+//	return;
+
+	dlock();
 	dn = drawlookupname(strlen(screenname), screenname);
 	m = screenimage;
-	DBG("%s: (%d, %d) 0x%x -> 0x%x\n", dn->name, Dx(m->r), Dy(m->r),
-		screendimage, screenimage);
+	DBG("%s: (%d, %d) %p -> %p\n", dn->name, Dx(m->r), Dy(m->r),
+		screendimage, m);
 
 	/*
 	 * Iterate over the screen images to replace the images with backing
@@ -2261,21 +2302,148 @@ drawreplacescreenimage(void)
 	 */
 	s = dscreen;
 	while(s){
-		DBG("dscreen: 0x%x\n", s);
+		DBG("dscreen: %p\n", s);
 		if(s->dimage){
-			DBG("    dimage: 0x%x -> 0x%x\n", s->dimage, s->dimage->image);
+			DBG("    dimage: %p -> %p\n", s->dimage, s->dimage->image);
 			if(s->dimage == odi)
 				s->dimage = screendimage;			
 			if(s->dimage->image == om)
 				s->dimage->image = screenimage;			
 		}
 		if(s->screen && s->screen->image){
-			DBG("  memimage: 0x%x\n", s->screen->image);
+			DBG("  memimage: %p\n", s->screen->image);
 			if(s->screen->image == om)
 				s->screen->image = screenimage;
 		}
 		s = s->next;
 	}
+	dunlock();
+	mouseresize();
+}
 
+void
+drawreplacememdata(void)
+{
+	int i, width, depth;
+	ulong chan;
+	Memdata *md, *omd;
+	Rectangle r;
+	u32int l;
+	Memlayer *ml;
+	Memimage *mi;
+
+	if(screenimage == nil)
+		return;
+
+	dlock();
+	/* grab the data from gscreen */
+	md = malloc(sizeof *md);
+	if(md == nil){
+		dunlock();
+		return;
+	}
+	md->allocd = 1;
+	md->base = nil;
+	md->bdata = attachscreen(&r, &chan, &depth, &width, &sdraw.softscreen);
+	if(md->bdata == nil){
+		free(md);
+		dunlock();
+		return;
+	}
+
+	/* massage the data into the old screenimage->data */
+	omd = screenimage->data;
+	md->ref = omd->ref;
+
+	l = wordsperline(r, screenimage->depth);
+
+	screenimage->r = screenimage->clipr = r;
+	screenimage->depth = depth;
+	screenimage->chan = chan;
+	screenimage->data = md;
+	screenimage->zero = sizeof(u32int)*l*r.min.y;
+	screenimage->width = width;
+
+	ml = dscreen->screen->image->layer;
+	do{
+		if(ml->screen->image->data == omd){
+			mi = ml->screen->image;
+			mi->r = mi->clipr = r;
+			mi->depth = depth;
+			mi->chan = chan;
+			mi->data = md;
+			mi->zero = sizeof(u32int)*l*r.min.y;
+			mi->width = width;
+		}
+		ml = ml->screen->image->layer;
+	}while(ml);
+
+	free(omd);
+//	omd->ref = 2;		// freed later
+
+	dunlock();
+	mouseresize();
+}
+
+void
+_drawreplacescreenimage(Memimage *m)
+{
+	int i;
+	DImage *di;
+
+	if(screendimage == nil)
+		return;
+
+	/*
+	 * Replace the screen image because the screen
+	 * was resized.  Clients still have references to the
+	 * old screen image, so we can't free it just yet.
+	 */
+	dlock();
+	di = allocdimage(m);
+	if(di == nil){
+		print("no memory to replace screen image\n");
+		freememimage(m);
+		dunlock();
+		return;
+	}
+
+printf("_drawreplacescreenimage [%p] ", m);
+dumpimage(di);
+	
+	/* Replace old screen image in global name lookup. */
+	for(i=0; i<sdraw.nname; i++){
+		if(sdraw.name[i].dimage == screendimage)
+		if(sdraw.name[i].client == nil){
+			sdraw.name[i].dimage = di;
+			break;
+		}
+	}
+
+	drawfreedimage(screendimage);
+	screendimage = di;
+	screenimage = m;
+
+	/*
+	 * Every client, when it starts, gets a copy of the
+	 * screen image as image 0.  Clients only use it 
+	 * for drawing if there is no /dev/winname, but
+	 * this /dev/draw provides a winname (early ones
+	 * didn't; winname originated in rio), so the
+	 * image only ends up used to find the screen
+	 * resolution and pixel format during initialization.
+	 * Silently remove the now-outdated image 0s.
+	 */
+	for(i=0; i<sdraw.nclient; i++){
+		if(sdraw.client[i] && !waserror()){
+			drawuninstall(sdraw.client[i], 0);
+			poperror();
+		}
+	}
+
+	memimagedraw(gscreen, gscreen->r, memblack, ZP, nil, ZP, S);
+	flushmemscreen(gscreen->r);
+
+	dunlock();
 	mouseresize();
 }

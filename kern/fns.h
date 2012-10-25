@@ -395,6 +395,7 @@ void		hnputs(void*, ushort);
 uvlong		nhgetv(void*);
 uint		nhgetl(void*);
 ushort		nhgets(void*);
+
 /*
 ulong		µs(void);
 void		_xinc(long*);
@@ -414,3 +415,6 @@ void	osinit(void);
 void	screeninit(void);
 long showfilewrite(char *a, int n);
 extern	void	terminit(void);
+
+// Plan 9 VX additions
+void restoretty(void);

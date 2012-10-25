@@ -727,7 +727,7 @@ mntrdwr(int type, Chan *c, void *buf, long n, vlong off)
 		uba += nr;
 		cnt += nr;
 		n -= nr;
-		if(nr != nreq || n == 0)
+		if(nr != nreq || n == 0 || up->nnote)
 			break;
 	}
 	return cnt;

@@ -8,10 +8,9 @@
 #undef Rect
 
 #include "u.h"
-#include "lib.h"
+#include "libc.h"
 #include "kern/mem.h"
 #include "kern/dat.h"
-#include "kern/fns.h"
 #include "error.h"
 #include "user.h"
 
@@ -29,10 +28,13 @@
 #include "bigarrow.h"
 #include "docpng.h"
 
+extern int		kbdputc(Queue*, int);
+extern ulong	msec(void);
+
 extern Cursorinfo cursor;
 extern int mousequeue;
 
-#define LOG	if(0)NSLog
+#define LOG	if(1)NSLog
 
 int usegestures = 0;
 int useliveresizing = 0;
@@ -276,6 +278,8 @@ makewin(NSSize *s)
 		wr = Rect(0, 0, (int)sr.size.width*2/3, (int)sr.size.height*2/3);
 		set = 0;
 	}
+#warning move back to decent size after debug
+	wr = Rect(0, 0, 1024, 768);
 
 	r.origin.x = wr.min.x;
 	r.origin.y = sr.size.height-wr.max.y;	/* winsize is top-left-based */
@@ -339,7 +343,7 @@ initimg(void)
 			bytesPerRow:bytesperline(r, 32)
 			bitsPerPixel:32];
 
-	i->data->ref++;		/* hold onto Memdata for later freemimage */
+	i->data->allocd = 0;			/* win.img now owns the Memdata */
 	return i;
 }
 
@@ -360,10 +364,12 @@ resizeimg()
 
 	termreplacescreenimage(gscreen);
 	drawreplacescreenimage();
-
-/* leak, otherwise a cp /dev/wsys/2/screen /tmp/screen2 fill crash */
-	if(m)
-		freememimage(m);
+//	drawreplacememdata();
+//	_drawreplacescreenimage(gscreen);
+	/* leak, otherwise a cp /dev/wsys/2/screen /tmp/screen2 fill crash */
+	if(m){
+		freememimage(m);		
+	}
 
 //	flushmemscreen(gscreen->r);
 	[win.content setHidden:NO];
@@ -1343,9 +1349,7 @@ setcolor(ulong index, ulong red, ulong green, ulong blue)
 void
 cursorarrow(void)
 {
-	drawqlock();
 	setcursor0([in.bigarrow retain]);
-	drawqunlock();
 }
 
 void

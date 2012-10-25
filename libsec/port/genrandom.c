@@ -1,4 +1,6 @@
 #include "os.h"
+#include	"kern/mem.h"
+#include	"kern/dat.h"
 #include <mp.h>
 #include <libsec.h>
 
