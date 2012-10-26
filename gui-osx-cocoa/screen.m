@@ -343,7 +343,8 @@ initimg(void)
 			bytesPerRow:bytesperline(r, 32)
 			bitsPerPixel:32];
 
-	i->data->allocd = 0;			/* win.img now owns the Memdata */
+	i->data->allocd = 0;	/* win.img now owns the Memdata */
+
 	return i;
 }
 
@@ -364,15 +365,8 @@ resizeimg()
 	gscreen = initimg();
 
 	termreplacescreenimage(gscreen);
-	drawreplacescreenimage();
-//	drawreplacememdata();
-//	_drawreplacescreenimage(gscreen);
-	/* leak, otherwise a cp /dev/wsys/2/screen /tmp/screen2 fill crash */
-	if(m){
-		freememimage(m);		
-	}
+	drawreplacescreenimage(gscreen);
 
-//	flushmemscreen(gscreen->r);
 	[win.content setHidden:NO];			/* reenable the flush */
 
 	sendmouse();
