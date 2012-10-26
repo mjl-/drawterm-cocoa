@@ -28,7 +28,7 @@ enum
 static Dirtab drawdir[]={
 	".",		{Qtopdir, 0, QTDIR},	0,		DMDIR|0555,
 	"new",		{Qnew}, 	0,		0444,
-	"winname",	{Qwinname},	0,		0444,
+	"winname",	{Qwinname, 0, 0},	0,		0444,
 	"3rd",	{Q3rd},	0,		0500,
 	"2nd",	{Q2nd},	0,		0500,
 	"colormap",	{Qcolormap},	0,		0600,
@@ -205,10 +205,12 @@ static	char Ewrongname[] = 	"wrong name for image";
 void
 dumpimage(DImage *m)
 {
+	#if 0
 	if(m){
 		printf("dimage [%p] id:%d ref:%d", m, m->id, m->ref);
 		printf(" memimage [%p] (%d, %d)\n", m->image, Dx(m->image->r), Dy(m->image->r));
 	}
+	#endif
 }
 
 static void
@@ -284,6 +286,13 @@ drawgen(Chan *c, char *name, Dirtab *dt, int ndt, int s, Dir *dp)
 		}
 		return 1;
 	}
+
+	if(t == Qwinname){
+			mkqid(&q, Qwinname, 0, QTFILE);
+			devdir(c, q, "winname", 0, eve, 0444, dp);
+			return 1;
+	}
+
 
 	/*
 	 * Second level contains "new" plus all the clients.
@@ -511,7 +520,7 @@ drawlookup(Client *client, int id, int checkname)
 	DImage *d;
 	DName *n;
 
-printf("drawlookup: id=%d\n", id);
+// printf("drawlookup: id=%d\n", id);
 	d = client->dimage[id&HASHMASK];
 	while(d){
 		dumpimage(d);
@@ -591,7 +600,7 @@ drawinstall(Client *client, int id, Memimage *i, DScreen *dscreen)
 	d->dscreen = dscreen;
 	d->next = client->dimage[id&HASHMASK];
 	client->dimage[id&HASHMASK] = d;
-printf("drawinstall: cl=%p ds=%p id=%d\n", client, dscreen, id);
+// printf("drawinstall: cl=%p ds=%p id=%d\n", client, dscreen, id);
 	dumpimage(d);
 	return i;
 }
@@ -644,7 +653,7 @@ drawinstallscreen(Client *client, DScreen *d, int id, DImage *dimage, DImage *df
 	d->ref++;
 	c->next = client->cscreen;
 	client->cscreen = c;
-printf("drawinstallscreen: cl=%p scr=%p id=%d\n", client, d, id);
+// printf("drawinstallscreen: cl=%p scr=%p id=%d\n", client, d, id);
 	dumpimage(dimage);
 	return d->screen;
 }
@@ -699,7 +708,7 @@ drawfreedimage(DImage *dimage)
 	Memimage *l;
 	DScreen *ds;
 
-printf("drawfreedimage: ");
+// printf("drawfreedimage: ");
 dumpimage(dimage);
 
 	dimage->ref--;
@@ -1096,6 +1105,7 @@ drawopen(Chan *c, int omode)
 
 	switch(QID(c->qid)){
 	case Qwinname:
+		printf("winname [%llu, %u, %d]\n", c->qid.path, c->qid.vers, c->qid.type);
 		break;
 
 	case Qnew:
@@ -1203,7 +1213,8 @@ drawread(Chan *c, void *a, long n, vlong off)
 
 	if(c->qid.type & QTDIR)
 		return devdirread(c, a, n, drawdir, nelem(drawdir), drawgen);
-	if(QID(c->qid) == Qwinname)
+//	if(QID(c->qid) == Qwinname)
+	if((ulong)c->qid.path == Qwinname)
 		return readstr(off, a, n, screenname);
 
 	cl = drawclient(c);
@@ -2263,7 +2274,7 @@ drawqunlock(void)
 	dunlock();
 }
 
-#define DBG if(1)printf
+#define DBG if(0)printf
 
 void
 drawreplacescreenimage(void)
@@ -2313,20 +2324,21 @@ drawreplacescreenimage(void)
 	 */
 	s = dscreen;
 	while(s){
-		DBG("dscreen: %p\n", s);
+		DBG("dscreen: %p", s);
 		if(s->dimage){
-			DBG("    dimage: %p -> %p\n", s->dimage, s->dimage->image);
+			DBG("  dimage: %p -> %p", s->dimage, s->dimage->image);
 			if(s->dimage == odi)
 				s->dimage = screendimage;			
 			if(s->dimage->image == om)
 				s->dimage->image = screenimage;			
 		}
 		if(s->screen && s->screen->image){
-			DBG("  memimage: %p\n", s->screen->image);
+			DBG("  memimage: %p", s->screen->image);
 			if(s->screen->image == om)
 				s->screen->image = screenimage;
 		}
 		s = s->next;
+		DBG("\n");
 	}
 	dunlock();
 	mouseresize();
@@ -2419,7 +2431,7 @@ _drawreplacescreenimage(Memimage *m)
 		return;
 	}
 
-printf("_drawreplacescreenimage [%p] ", m);
+// printf("_drawreplacescreenimage [%p] ", m);
 dumpimage(di);
 	
 	/* Replace old screen image in global name lookup. */
