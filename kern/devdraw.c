@@ -25,18 +25,6 @@ enum
 	Qrefresh,
 };
 
-static Dirtab drawdir[]={
-	".",		{Qtopdir, 0, QTDIR},	0,		DMDIR|0555,
-	"new",		{Qnew}, 	0,		0444,
-	"winname",	{Qwinname, 0, 0},	0,		0444,
-	"3rd",	{Q3rd},	0,		0500,
-	"2nd",	{Q2nd},	0,		0500,
-	"colormap",	{Qcolormap},	0,		0600,
-	"ctl",	{Qctl},	0,		0600,
-	"data",	{Qdata},	0,		0500,
-	"refresh",	{Qrefresh},	0,		0400,
-};
-
 /*
  * Qid path is:
  *	 4 bits of file type (qids above)
@@ -282,7 +270,6 @@ drawgen(Chan *c, char *name, Dirtab *dt, int ndt, int s, Dir *dp)
 			return 1;
 	}
 
-
 	/*
 	 * Second level contains "new" plus all the clients.
 	 */
@@ -507,7 +494,6 @@ DImage*
 drawlookup(Client *client, int id, int checkname)
 {
 	DImage *d;
-	DName *n;
 
 	d = client->dimage[id&HASHMASK];
 	while(d){
@@ -518,12 +504,7 @@ drawlookup(Client *client, int id, int checkname)
 		}
 		d = d->next;
 	}
-	if(id == 0){
-		n = drawlookupname(strlen(screenname), screenname);
-		if(n)
-			d = n->dimage;
-	}
-	return d;
+	return 0;
 }
 
 DScreen*
@@ -1050,13 +1031,13 @@ drawwalk(Chan *c, Chan *nc, char **name, int nname)
 {
 	if(screenimage == nil)
 		error("no frame buffer");
-	return devwalk(c, nc, name, nname, drawdir, nelem(drawdir), drawgen);
+	return devwalk(c, nc, name, nname, 0, 0, drawgen);
 }
 
 static int
 drawstat(Chan *c, uchar *db, int n)
 {
-	return devstat(c, db, n, drawdir, nelem(drawdir), drawgen);
+	return devstat(c, db, n, 0, 0, drawgen);
 }
 
 static Chan*
@@ -1067,7 +1048,7 @@ drawopen(Chan *c, int omode)
 	DImage *di;
 
 	if(c->qid.type & QTDIR){
-		c = devopen(c, omode, drawdir, nelem(drawdir), drawgen);
+		c = devopen(c, omode, 0, 0, drawgen);
 		c->iounit = IOUNIT;
 	}
 
@@ -1192,9 +1173,8 @@ drawread(Chan *c, void *a, long n, vlong off)
 	char buf[16];
 
 	if(c->qid.type & QTDIR)
-		return devdirread(c, a, n, drawdir, nelem(drawdir), drawgen);
-//	if(QID(c->qid) == Qwinname)
-	if((ulong)c->qid.path == Qwinname)
+		return devdirread(c, a, n, 0, 0, drawgen);
+	if(QID(c->qid) == Qwinname)
 		return readstr(off, a, n, screenname);
 
 	cl = drawclient(c);
