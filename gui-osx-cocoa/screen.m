@@ -278,8 +278,6 @@ makewin(NSSize *s)
 		wr = Rect(0, 0, (int)sr.size.width*2/3, (int)sr.size.height*2/3);
 		set = 0;
 	}
-#warning move back to decent size after debug
-	wr = Rect(0, 0, 1024, 768);
 
 	r.origin.x = wr.min.x;
 	r.origin.y = sr.size.height-wr.max.y;	/* winsize is top-left-based */
