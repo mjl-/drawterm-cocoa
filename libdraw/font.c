@@ -3,9 +3,7 @@
 #include <draw.h>
 
 static int	fontresize(Font*, int, int, int);
-#if 0
 static int	freeup(Font*);
-#endif
 
 #define	PJW	0	/* use NUL==pjw for invisible characters */
 
@@ -320,7 +318,6 @@ loadchar(Font *f, Rune r, Cacheinfo *c, int h, int noflush, char **subfontname)
 }
 
 /* release all subfonts, return number freed */
-#if 0
 static
 int
 freeup(Font *f)
@@ -345,7 +342,6 @@ freeup(Font *f)
 	}
 	return nf;
 }
-#endif
 
 /* return whether resize succeeded && f->cache is unchanged */
 static int
@@ -369,7 +365,7 @@ fontresize(Font *f, int wid, int ncache, int depth)
 
 	new = allocimage(d, Rect(0, 0, ncache*wid, f->height), CHAN1(CGrey, depth), 0, 0);
 	if(new == nil){
-		fprint(2, "font cache resize failed: %r\n");
+		fprint(2, "font cache resize failed: (%d·%d)·%d %r\n", ncache, wid, f->height);
 		abort();
 		goto Return;
 	}

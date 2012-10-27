@@ -110,7 +110,7 @@ geninitdraw(char *devdir, void(*error)(Display*, char*), char *fontname, char *l
 }
 
 int
-initdraw(void (*error)(Display*, char*), char *fontname, char *label)
+initdraw(void(*error)(Display*, char*), char *fontname , char *label)
 {
 	char *dev = "/dev";
 
