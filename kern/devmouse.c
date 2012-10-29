@@ -18,6 +18,41 @@ enum {
 	ScrollRight = 0x40,
 };
 
+typedef struct Mouseinfo	Mouseinfo;
+typedef struct Mousestate	Mousestate;
+
+struct Mousestate
+{
+	Point	xy;		/* mouse.xy */
+	int	buttons;	/* mouse.buttons */
+	ulong	counter;	/* increments every update */
+	ulong	msec;		/* time of last event */
+};
+
+struct Mouseinfo
+{
+	Lock lk;
+	Mousestate state;
+	int	dx;
+	int	dy;
+	int	track;		/* dx & dy updated */
+	int	redraw;		/* update cursor on screen */
+	ulong	lastcounter;	/* value when /dev/mouse read */
+	ulong	lastresize;
+	ulong	resize;
+	Rendez	r;
+	Ref ref;
+	QLock 	qlk;
+	int	open;
+	int	inopen;
+	int	acceleration;
+	int	maxacc;
+	Mousestate	queue[16];	/* circular buffer of click events */
+	int	ri;		/* read index into queue */
+	int	wi;		/* write index into queue */
+	uchar	qfull;		/* queue is full */
+};
+
 enum
 {
 	CMbuttonmap,
@@ -89,7 +124,7 @@ static void
 mousefromkbd(int buttons)
 {
 	kbdbuttons = buttons;
-	mousetrack(0, 0, 0, ticks());
+	mousetrack(0, 0, 0, msec());
 }
 
 static int
@@ -160,7 +195,7 @@ mouseopen(Chan *c, int omode)
 			error(Einuse);
 		}
 		mouse.open = 1;
-		incref(&mouse.ref);
+		mouse.ref.ref++;
 		mouse.lastresize = mouse.resize;
 		unlock(&mouse.lk);
 		break;
@@ -203,14 +238,13 @@ mouseclose(Chan *c)
 	if((c->qid.type&QTDIR)==0 && (c->flag&COPEN)){
 		lock(&mouse.lk);
 		if(c->qid.path == Qmouse){
-			termredraw();
 			mouse.open = 0;			
 		} else if(c->qid.path == Qmousein){
 			mouse.inopen = 0;
 			unlock(&mouse.lk);
 			return;
 		}
-		if(decref(&mouse.ref) == 0){
+		if(--mouse.ref.ref == 0){
 			cursoroff(1);
 			curs = arrow;
 			Cursortocursor(&arrow);
@@ -297,7 +331,6 @@ mouseread(Chan *c, void *va, long n, vlong off)
 		if(mouse.lastresize != mouse.resize){
 			mouse.lastresize = mouse.resize;
 			buf[0] = 'r';
-printf("Twrite->  mouse: %s", buf);
 		}
 		memmove(va, buf, n);
 		return n;
@@ -356,7 +389,8 @@ mousewrite(Chan *c, void *va, long n, vlong offset)
 	Cmdbuf *cb;
 	Cmdtab *ct;
 	char buf[64];
-	int b, msec;
+	int b;
+	ulong ms;
 
 	USED(offset);
 
@@ -436,10 +470,10 @@ mousewrite(Chan *c, void *va, long n, vlong offset)
 		if(p == 0)
 			error(Eshort);
 		b = strtol(p, &p, 0);
-		msec = strtol(p, &p, 0);
-		if(msec == 0)
-			msec = ticks();
-		mousetrack(pt.x, pt.y, b, msec);
+		ms = strtol(p, &p, 0);
+		if(ms == 0)
+			ms = msec();
+		mousetrack(pt.x, pt.y, b, ms);
 		return n;
 
 	case Qmouse:
@@ -558,20 +592,17 @@ mousetrack(int dx, int dy, int b, int msec)
 
 	if(gscreen==nil)
 		return;
-/*
+
 	if(mouse.acceleration){
 		dx = scale(dx);
 		dy = scale(dy);
 	}
 	x = mouse.state.xy.x + dx;
-*/
-	x = dx;
 	if(x < gscreen->clipr.min.x)
 		x = gscreen->clipr.min.x;
 	if(x >= gscreen->clipr.max.x)
 		x = gscreen->clipr.max.x;
-//	y = mouse.state.xy.y + dy;
-	y = dy;
+	y = mouse.state.xy.y + dy;
 	if(y < gscreen->clipr.min.y)
 		y = gscreen->clipr.min.y;
 	if(y >= gscreen->clipr.max.y)
@@ -597,6 +628,107 @@ mousetrack(int dx, int dy, int b, int msec)
 	}
 	wakeup(&mouse.r);
 	drawactive(1);
+}
+
+/* not required for drawterm */
+#if 0
+/*
+ *  microsoft 3 button, 7 bit bytes
+ *
+ *	byte 0 -	1  L  R Y7 Y6 X7 X6
+ *	byte 1 -	0 X5 X4 X3 X2 X1 X0
+ *	byte 2 -	0 Y5 Y4 Y3 Y2 Y1 Y0
+ *	byte 3 -	0  M  x  x  x  x  x	(optional)
+ *
+ *  shift & right button is the same as middle button (for 2 button mice)
+ */
+int
+m3mouseputc(Queue*, int c)
+{
+	static uchar msg[3];
+	static int nb;
+	static int middle;
+	static uchar b[] = { 0, 4, 1, 5, 0, 2, 1, 3 };
+	short x;
+	int dx, dy, newbuttons;
+	static ulong lasttick;
+	ulong m;
+
+	/* Resynchronize in stream with timing. */
+	m = MACHP(0)->ticks;
+	if(TK2SEC(m - lasttick) > 2)
+		nb = 0;
+	lasttick = m;
+
+	if(nb==0){
+		/*
+		 * an extra byte comes for middle button motion.
+		 * only two possible values for the extra byte.
+		 */
+		if(c == 0x00 || c == 0x20){
+			/* an extra byte gets sent for the middle button */
+			middle = (c&0x20) ? 2 : 0;
+			newbuttons = (mouse.buttons & ~2) | middle;
+			mousetrack(0, 0, newbuttons, TK2MS(MACHP(0)->ticks));
+			return 0;
+		}
+	}
+	msg[nb] = c;
+	if(++nb == 3){
+		nb = 0;
+		newbuttons = middle | b[(msg[0]>>4)&3 | (mouseshifted ? 4 : 0)];
+		x = (msg[0]&0x3)<<14;
+		dx = (x>>8) | msg[1];
+		x = (msg[0]&0xc)<<12;
+		dy = (x>>8) | msg[2];
+		mousetrack(dx, dy, newbuttons, TK2MS(MACHP(0)->ticks));
+	}
+	return 0;
+}
+
+/*
+ * microsoft intellimouse 3 buttons + scroll
+ * 	byte 0 -	1  L  R Y7 Y6 X7 X6
+ *	byte 1 -	0 X5 X4 X3 X2 X1 X0
+ *	byte 2 -	0 Y5 Y4 Y3 Y2 Y1 Y0
+ *	byte 3 -	0  0  M  %  %  %  %
+ *
+ *	%: 0xf => U , 0x1 => D
+ *
+ *	L: left
+ *	R: right
+ *	U: up
+ *	D: down
+ */
+int
+m5mouseputc(Queue*, int c)
+{
+	static uchar msg[3];
+	static int nb;
+	static ulong lasttick;
+	ulong m;
+
+	/* Resynchronize in stream with timing. */
+	m = MACHP(0)->ticks;
+	if(TK2SEC(m - lasttick) > 2)
+		nb = 0;
+	lasttick = m;
+
+	msg[nb++] = c & 0x7f;
+	if (nb == 4) {
+		schar dx,dy,newbuttons;
+		dx = msg[1] | (msg[0] & 0x3) << 6;
+		dy = msg[2] | (msg[0] & 0xc) << 4;
+		newbuttons =
+			(msg[0] & 0x10) >> (mouseshifted ? 3 : 2)
+			| (msg[0] & 0x20) >> 5
+			| ( msg[3] == 0x10 ? 0x02 :
+			    msg[3] == 0x0f ? ScrollUp :
+			    msg[3] == 0x01 ? ScrollDown : 0 );
+		mousetrack(dx, dy, newbuttons, TK2MS(MACHP(0)->ticks));
+		nb = 0;
+	}
+	return 0;
 }
 
 /*
@@ -636,6 +768,7 @@ mouseputc(Queue *q, int c)
 	}
 	return 0;
 }
+#endif
 
 int
 mousechanged(void *a)
@@ -671,3 +804,8 @@ mouseresize(void)
 	wakeup(&mouse.r);
 }
 
+int
+mouseopened(void)
+{
+	return mouse.open;
+}

@@ -36,8 +36,6 @@ static void termputs(char*, int);
 static void showkmesg(void);
 static void kickscreen(void);
 
-extern Mouseinfo mouse;
-
 void
 terminit(void)
 {
@@ -99,6 +97,7 @@ _termreplacescreenimage(Memimage *m)
 {
 	int h;
 	Rectangle r, r0;
+	int mopen;
 
 	if(term.bg == nil){
 		/* not yet init */
@@ -106,22 +105,24 @@ _termreplacescreenimage(Memimage *m)
 		return;
 	}
 
+	mopen = mouseopened();
+
 	/* white background */
-	if(!mouse.open)
+	if(!mopen)
 		memimagedraw(m, m->r, term.bg, ZP, memopaque, ZP, S);
 	
 	/* grey heading: Plan 9 VX */
 	r = m->r;
 	h = term.font->height;
 	r.max.y = r.min.y + Border + h + Border;
-	if(!mouse.open){
+	if(!mopen){
 		memimagedraw(m, r, term.grey, ZP, memopaque, ZP, S);
 		memimagestring(m, addpt(r.min, Pt(Border, Border)),
 			memwhite, ZP, term.font, "Plan 9 drawterm console");
 	}
 	r.min.y = r.max.y;
 	r.max.y += 2;
-	if(!mouse.open){
+	if(!mopen){
 		memimagedraw(m, r, memblack, ZP, memopaque, ZP, S);
 	}
 
@@ -141,7 +142,7 @@ _termreplacescreenimage(Memimage *m)
 
 	/* ready to commit */
 	term.screen = m;
-	if(!mouse.open){
+	if(!mopen){
 		// showkmesg();
 		termcursor(1);
 		flushmemscreen(m->r);
@@ -272,6 +273,7 @@ _termputs(char *s, int n)
 	Rune r;
 	int nb;
 	char *p, *ep;
+	int mopen;
 
 	if(term.screen == nil)
 		return;
@@ -282,7 +284,8 @@ _termputs(char *s, int n)
 			break;
 		microdelay(100);
 	}
-	if(!mouse.open)
+	mopen = mouseopened();
+	if(!mopen)
 		termcursor(0);
 	for(p=s, ep=s+n; p<ep; p+=nb){
 		nb = chartorune(&r, p);
@@ -292,7 +295,7 @@ _termputs(char *s, int n)
 		}
 		termputc(r);
 	}
-	if(!mouse.open)
+	if(!mopen)
 		termcursor(1);
 	flushmemscreen(term.flushr);
 	term.flushr = Rect(10000, 10000, -10000, -10000);

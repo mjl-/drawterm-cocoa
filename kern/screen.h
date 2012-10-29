@@ -1,6 +1,4 @@
 typedef struct Cursorinfo Cursorinfo;
-typedef struct Mouseinfo	Mouseinfo;
-typedef struct Mousestate	Mousestate;
 typedef struct Screeninfo Screeninfo;
 
 struct Cursorinfo {
@@ -8,42 +6,11 @@ struct Cursorinfo {
 	Lock 	lk;
 };
 
-struct Mousestate
-{
-	Point	xy;		/* mouse.xy */
-	int	buttons;	/* mouse.buttons */
-	ulong	counter;	/* increments every update */
-	ulong	msec;		/* time of last event */
-};
-
-struct Mouseinfo
-{
-	Lock lk;
-	Mousestate state;
-	int	dx;
-	int	dy;
-	int	track;		/* dx & dy updated */
-	int	redraw;		/* update cursor on screen */
-	ulong	lastcounter;	/* value when /dev/mouse read */
-	ulong	lastresize;
-	ulong	resize;
-	Rendez	r;
-	Ref  ref;
-	QLock 	qlk;
-	int	open;
-	int	inopen;
-	int	acceleration;
-	int	maxacc;
-	Mousestate	queue[16];	/* circular buffer of click events */
-	int	ri;		/* read index into queue */
-	int	wi;		/* write index into queue */
-	uchar	qfull;		/* queue is full */
-};
-
 /* devmouse.c */
 extern void mousectl(Cmdbuf*);
 extern void mousetrack(int, int, int, int);
 extern Point mousexy(void);
+extern int mouseopened(void);
 
 struct Screeninfo {
 	Lock		lk;

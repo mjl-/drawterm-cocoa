@@ -619,7 +619,6 @@ drawinstallscreen(Client *client, DScreen *d, int id, DImage *dimage, DImage *df
 	d->ref++;
 	c->next = client->cscreen;
 	client->cscreen = c;
-
 	return d->screen;
 }
 

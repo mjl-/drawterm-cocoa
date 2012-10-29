@@ -43,8 +43,6 @@ int usebigarrow = 1;
 
 int alting;
 
-Rectangle mouserect;
-
 Memimage	*gscreen;
 Screeninfo	screeninfo;
 
@@ -112,6 +110,7 @@ void _flushmemscreen(Rectangle r);
 	[pinfo enableSuddenTermination];
 
 	in.bigarrow = makecursor(&arrow);
+
 	makeicon();
 	makemenu();
 
@@ -345,8 +344,6 @@ initimg(void)
 
 	return i;
 }
-
-extern Mouseinfo mouse;
 
 static void
 resizeimg()
@@ -1006,15 +1003,16 @@ sendclick(NSUInteger b)
 static void
 sendmouse(void)
 {
-	NSSize size;
-	NSUInteger b;
+	if(NSPointInRect(in.mpos, [win.content bounds])){
+		NSUInteger b;
+		Point dp, p;
 
-	size = [win.content bounds].size;
-	mouserect = Rect(0, 0, size.width, size.height);
-
-	b = in.kbuttons | in.mbuttons | in.mscroll;
-	mousetrack(in.mpos.x, in.mpos.y, b, msec());
-	in.mscroll = 0;
+		p = mousexy();
+		dp = Pt(in.mpos.x - p.x, in.mpos.y - p.y);
+		b = in.kbuttons | in.mbuttons | in.mscroll;
+		mousetrack(dp.x, dp.y, b, msec());
+		in.mscroll = 0;
+	}
 }
 
 void
@@ -1230,7 +1228,14 @@ putsnarf(char *s)
 int
 cursoron(int dolock)
 {
-	return 1;
+	Point p;
+	if(dolock)
+		lock(&cursor.lk);
+	p = mousexy();
+	mouseset(p);
+	if(dolock)
+		unlock(&cursor.lk);
+	return 0;
 }
 
 void
@@ -1348,20 +1353,14 @@ cursorarrow(void)
 void
 mousectl(Cmdbuf *cb)
 {
+	NSLog(@"mousectl");
 }
 
 void
 mouseset(Point xy)
 {
-	LOG(@"mouseset (%d, %d)", xy.x, xy.y);
-	/*
-	CGPoint pnt;
-	drawqlock();
-	pnt.x = xy.x;
-	pnt.y = xy.y;
-	CGWarpMouseCursorPosition(pnt);
-	drawqunlock();
-	*/
+	if(!eqpt(ZP, xy))
+		setmouse(xy);
 }
 
 char*
