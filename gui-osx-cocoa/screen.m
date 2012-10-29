@@ -58,6 +58,7 @@ struct
 	int			needimg;
 	int			deferflush;
 	NSCursor		*cursor;
+	QLock 		lk;
 } win;
 
 struct
@@ -353,6 +354,7 @@ resizeimg()
 	if(win.img == nil)
 		return;
 
+	qlock(&win.lk);
 	[win.content setHidden:YES];		/* prevent flushimg from drawing */
 	m = gscreen;
 
@@ -363,6 +365,7 @@ resizeimg()
 	drawreplacescreenimage(gscreen);
 
 	[win.content setHidden:NO];			/* reenable the flush */
+	qunlock(&win.lk);
 
 	sendmouse();
 }
