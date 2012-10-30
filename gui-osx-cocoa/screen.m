@@ -17,6 +17,7 @@
 #define Image IMAGE
 #include <draw.h>
 #include <memdraw.h>
+typedef struct Channel	Channel;		/* used in keyboard.h */
 #include <keyboard.h>
 
 #include <cursor.h>
@@ -1006,16 +1007,14 @@ sendclick(NSUInteger b)
 static void
 sendmouse(void)
 {
-	if(NSPointInRect(in.mpos, [win.content bounds])){
-		NSUInteger b;
-		Point dp, p;
+	NSUInteger b;
+	Point dp, p;
 
-		p = mousexy();
-		dp = Pt(in.mpos.x - p.x, in.mpos.y - p.y);
-		b = in.kbuttons | in.mbuttons | in.mscroll;
-		mousetrack(dp.x, dp.y, b, msec());
-		in.mscroll = 0;
-	}
+	p = mousexy();
+	dp = Pt(in.mpos.x - p.x, in.mpos.y - p.y);
+	b = in.kbuttons | in.mbuttons | in.mscroll;
+	mousetrack(dp.x, dp.y, b, msec());
+	in.mscroll = 0;
 }
 
 void
