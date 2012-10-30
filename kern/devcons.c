@@ -6,7 +6,12 @@
 #include	"error.h"
 
 #include	<authsrv.h>
-#include 	"keyboard.h"
+
+/* minimal set from keyboard.h */
+enum {
+	KF=	0xF000,	/* Rune: beginning of private Unicode space */
+	Kalt=		KF|0x15,
+};
 
 void	(*consdebug)(void) = nil;
 void	(*screenputs)(char*, int) = nil;

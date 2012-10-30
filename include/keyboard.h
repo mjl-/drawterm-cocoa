@@ -4,7 +4,6 @@
 #endif
 
 typedef struct 	Keyboardctl Keyboardctl;
-typedef struct	Channel	Channel;
 
 struct	Keyboardctl
 {
