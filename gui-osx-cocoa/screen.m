@@ -1063,7 +1063,7 @@ followzoombutton(NSRect r)
 	getmousepos();
 	p.x = (int)((r.origin.x - wr.origin.x) + in.mpos.x);
 	p.y = (int)(-(r.origin.y - wr.origin.y) + in.mpos.y);
-	setmouse(p);
+	mouseset(p);
 }
 
 static void
@@ -1362,7 +1362,7 @@ mousectl(Cmdbuf *cb)
 void
 mouseset(Point xy)
 {
-	if(!eqpt(xy, Pt(in.mpos.x, in.mpos.y)))
+	if(![win.content isHidden] && !eqpt(xy, Pt(in.mpos.x, in.mpos.y)))
 		setmouse(xy);
 }
 
