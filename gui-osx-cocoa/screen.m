@@ -1291,7 +1291,7 @@ makecursor(Cursor *c)
 
 	for(b=0; b<2*16; b++){
 		plane[0][b] = c->set[b];
-		plane[1][b] = c->clr[b];
+		plane[1][b] = c->set[b] | c->clr[b];
 	}
 	p = NSMakePoint(-c->offset.x, -c->offset.y);
 	i = [NSImage new];
