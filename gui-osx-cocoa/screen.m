@@ -1362,7 +1362,7 @@ mousectl(Cmdbuf *cb)
 void
 mouseset(Point xy)
 {
-	if(!eqpt(ZP, xy))
+	if(!eqpt(xy, Pt(in.mpos.x, in.mpos.y)))
 		setmouse(xy);
 }
 
