@@ -255,8 +255,8 @@ min(double a, double b)
 
 enum
 {
-	Winstyle = NSTitledWindowMask
-		| NSClosableWindowMask
+	Winstyle = // NSTitledWindowMask
+		  NSClosableWindowMask
 		| NSMiniaturizableWindowMask
 		| NSResizableWindowMask
 };
@@ -366,9 +366,9 @@ resizeimg()
 	drawreplacescreenimage(gscreen);
 
 	[win.content setHidden:NO];			/* reenable the flush */
+	flushmemscreen(gscreen->r);
 	qunlock(&win.lk);
 
-	flushmemscreen(gscreen->r);
 	sendmouse();
 }
 
@@ -396,7 +396,7 @@ waitimg(int msec)
 void
 _flushmemscreen(Rectangle r)
 {
-	if([win.content canDraw] == 0)
+	if(![win.content canDraw])
 		return;
 
 	LOG(@"_flushmemscreen");
@@ -1169,6 +1169,7 @@ makemenu(void)
 	item = [m addItemWithTitle:@"Minimize"
 						action:@selector(miniaturize:)
 				 keyEquivalent:@"m"];
+	[m addItemWithTitle:@"Zoom" action:@selector(zoom:) keyEquivalent:@""];
 	[i2 setSubmenu:m];
 	[m release];
 }
