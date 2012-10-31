@@ -368,6 +368,7 @@ resizeimg()
 	[win.content setHidden:NO];			/* reenable the flush */
 	qunlock(&win.lk);
 
+	flushmemscreen(gscreen->r);
 	sendmouse();
 }
 

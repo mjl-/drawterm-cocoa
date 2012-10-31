@@ -30,6 +30,8 @@ static struct {
 	Rectangle text;	/* rectangle holding text */
 	Rectangle maxtext;	/* total space for text */
 	Rectangle line;	/* remainder of current output line */
+	char *lputs;	/* last termputs string */
+	int ln;			/* last termputs length */
 } term;
 
 static void termputs(char*, int);
@@ -158,11 +160,12 @@ termreplacescreenimage(Memimage *m)
 		_termreplacescreenimage(m);
 		unlock(&term.lk);
 		drawqunlock();
-		return;
+	} else {
+		lock(&term.lk);
+		_termreplacescreenimage(m);
+		unlock(&term.lk);
 	}
-	lock(&term.lk);
-	_termreplacescreenimage(m);
-	unlock(&term.lk);
+	termputs(term.lputs, term.ln);
 }
 
 void
@@ -306,9 +309,18 @@ _termputs(char *s, int n)
 static void
 termputs(char *s, int n)
 {
-	lock(&term.lk);
-	_termputs(s, n);
-	unlock(&term.lk);
+	if(n){
+		char *old;
+		lock(&term.lk);
+		old = term.lputs;
+		term.lputs = malloc(n+1);
+		term.ln = n;
+		strncpy(term.lputs, s, n);
+		_termputs(s, n);
+		unlock(&term.lk);		
+		if(old)
+			free(old);
+	}
 }
 
 #if 0
