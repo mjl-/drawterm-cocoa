@@ -5,11 +5,9 @@ LIB=libgui.a
 OFILES=\
 	alloc.$O\
 	cload.$O\
-	draw.$O\
 	load.$O\
 	mouseswap.$O\
-	dtmain.$O\
-	screen-cocoa.$O\
+	screen.$O\
 	main-cocoa.$O
 
 default: $(LIB)

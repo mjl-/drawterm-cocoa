@@ -1,13 +1,20 @@
 #include	"u.h"
 #include	"lib.h"
+#include	"mem.h"
 #include	"dat.h"
 #include	"fns.h"
 #include	"error.h"
 
-#include 	"keyboard.h"
+#include	<authsrv.h>
 
-void	(*consdebug)(void) = 0;
-void	(*screenputs)(char*, int) = 0;
+/* minimal set from keyboard.h */
+enum {
+	KF=	0xF000,	/* Rune: beginning of private Unicode space */
+	Kalt=		KF|0x15,
+};
+
+void	(*consdebug)(void) = nil;
+void	(*screenputs)(char*, int) = nil;
 
 Queue*	kbdq;			/* unprocessed console input */
 Queue*	lineq;			/* processed console input */
@@ -18,12 +25,6 @@ Lock	kprintlock;
 int	iprintscreenputs = 0;
 
 int	panicking;
-
-struct
-{
-	int exiting;
-	int machs;
-} active;
 
 static struct
 {
@@ -44,18 +45,9 @@ static struct
 	char	*ir;
 	char	*ie;
 } kbd = {
-	{ 0 },
-	0,
-	0,
-	0,
-	{ 0 },
-	0,
-	0,
-	{ 0 },
-	{ 0 },
-	kbd.istage,
-	kbd.istage,
-	kbd.istage + sizeof(kbd.istage),
+	.iw	= kbd.istage,
+	.ir	= kbd.istage,
+	.ie	= kbd.istage + sizeof(kbd.istage),
 };
 
 char	*sysname;
@@ -87,7 +79,7 @@ return0(void *v)
 void
 printinit(void)
 {
-	lineq = qopen(2*1024, 0, 0, nil);
+	lineq = qopen(2*1024, 0, nil, nil);
 	if(lineq == nil)
 		panic("printinit");
 	qnoblock(lineq, 1);
@@ -142,7 +134,7 @@ putstrn0(char *str, int n, int usewrite)
 			qwrite(kprintoq, str, n);
 		else
 			qiwrite(kprintoq, str, n);
-	}else if(screenputs != 0)
+	}else if(screenputs != nil)
 		screenputs(str, n);
 }
 
@@ -175,7 +167,7 @@ print(char *fmt, ...)
 void
 panic(char *fmt, ...)
 {
-	int n;
+	int n, s;
 	va_list arg;
 	char buf[PRINTSIZE];
 
@@ -185,17 +177,17 @@ panic(char *fmt, ...)
 		for(;;);
 	panicking = 1;
 
-	splhi();
+	s = splhi();
 	strcpy(buf, "panic: ");
 	va_start(arg, fmt);
 	n = vseprint(buf+strlen(buf), buf+sizeof(buf), fmt, arg) - buf;
 	va_end(arg);
-	buf[n] = '\n';
 	uartputs(buf, n+1);
 	if(consdebug)
 		(*consdebug)();
 	spllo();
 	prflush();
+	buf[n] = '\n';
 	putstrn(buf, n+1);
 	dumpstack();
 
@@ -295,6 +287,9 @@ echo(char *buf, int n)
 	int x;
 	char *e, *p;
 
+	if(n == 0)
+		return;
+
 	e = buf+n;
 	for(p = buf; p < e; p++){
 		switch(*p){
@@ -330,17 +325,18 @@ echo(char *buf, int n)
 			xsummary();
 			ixsummary();
 			mallocsummary();
+		//	memorysummary();
 			pagersummary();
 			return;
 		case 'd':
-			if(consdebug == 0)
+			if(consdebug == nil)
 				consdebug = rdb;
 			else
-				consdebug = 0;
-			print("consdebug now 0x%p\n", consdebug);
+				consdebug = nil;
+			print("consdebug now %#p\n", consdebug);
 			return;
 		case 'D':
-			if(consdebug == 0)
+			if(consdebug == nil)
 				consdebug = rdb;
 			consdebug();
 			return;
@@ -353,7 +349,7 @@ echo(char *buf, int n)
 			scheddump();
 			return;
 		case 'k':
-			killbig();
+			killbig("^t ^t k");
 			return;
 		case 'r':
 			exit(0);
@@ -364,7 +360,7 @@ echo(char *buf, int n)
 	qproduce(kbdq, buf, n);
 	if(kbd.raw)
 		return;
-	if(screenputs != 0)
+	if(screenputs != nil)
 		echoscreen(buf, n);
 	if(serialoq)
 		echoserialoq(buf, n);
@@ -445,7 +441,6 @@ kbdputc(Queue *q, int c)
 	return 0;
 }
 
-
 enum{
 	Qdir,
 	Qbintime,
@@ -518,7 +513,7 @@ readnum(ulong off, char *buf, ulong n, ulong val, int size)
 {
 	char tmp[64];
 
-	snprint(tmp, sizeof(tmp), "%*.0lud", size-1, val);
+	snprint(tmp, sizeof(tmp), "%*lud", size-1, val);
 	tmp[size-1] = ' ';
 	if(off >= size)
 		return 0;
@@ -968,7 +963,7 @@ conswrite(Chan *c, void *va, long n, vlong off)
 		break;
 
 	default:
-		print("conswrite: 0x%llux\n", c->qid.path);
+		print("conswrite: %#llux\n", c->qid.path);
 		error(Egreg);
 	}
 	return n;

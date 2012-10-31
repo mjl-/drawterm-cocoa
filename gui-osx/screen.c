@@ -37,7 +37,7 @@ Boolean   gDone;
 RgnHandle gCursorRegionHdl;
 
 Memimage	*gscreen;
-Screeninfo	screen;
+Screeninfo	screeninfo;
 
 static int readybit;
 static Rendez	rend;
@@ -88,7 +88,7 @@ void screeninit(void)
 
 	memimageinit();
 	depth = 32; // That's all this code deals with for now
-	screen.depth = 32;
+	screeninfo.depth = 32;
 	fmt = XBGR32; //XRGB32;
 
 	devRect = CGDisplayBounds(CGMainDisplayID());

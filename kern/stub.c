@@ -1,5 +1,6 @@
 #include "u.h"
 #include "lib.h"
+#include 	"mem.h"
 #include "dat.h"
 #include "fns.h"
 #include "error.h"
@@ -55,8 +56,9 @@ scheddump(void)
 }
 
 void
-killbig(void)
+killbig(char* c)
 {
+	USED(c);
 }
 
 void
@@ -139,7 +141,7 @@ rdb(void)
 }
 
 void
-setmalloctag(void *v, uintptr tag)
+setmalloctag(void *v, ulong tag)
 {
 	USED(v);
 	USED(tag);

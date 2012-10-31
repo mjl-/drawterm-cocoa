@@ -156,9 +156,6 @@ cpumain(int argc, char **argv)
 	case 'u':
 		user = EARGF(usage());
 		break;
-	case 'f':
-		// picked off earlier
-		break;
 	default:
 		usage();
 	}ARGEND;

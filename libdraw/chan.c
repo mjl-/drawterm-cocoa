@@ -4,9 +4,9 @@
 
 static char channames[] = "rgbkamx";
 char*
-chantostr(char *buf, ulong cc)
+chantostr(char *buf, u32int cc)
 {
-	ulong c, rc;
+	u32int c, rc;
 	char *p;
 
 	if(chantodepth(cc) == 0)
@@ -40,10 +40,11 @@ ulong
 strtochan(char *s)
 {
 	char *p, *q;
-	ulong c;
-	int t, n;
+	u32int c;
+	int t, n, d;
 
 	c = 0;
+	d = 0;
 	p=s;
 	while(*p && xisspace(*p))
 		p++;
@@ -55,14 +56,17 @@ strtochan(char *s)
 		if(p[1] < '0' || p[1] > '9')
 			return 0;
 		n = p[1]-'0';
+		d += n;
 		c = (c<<8) | __DC(t, n);
 		p += 2;
 	}
+	if(d==0 || (d>8 && d%8) || (d<8 && 8%d))
+		return 0;
 	return c;
 }
 
 int
-chantodepth(ulong c)
+chantodepth(u32int c)
 {
 	int n;
 

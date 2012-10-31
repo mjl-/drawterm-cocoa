@@ -5,7 +5,7 @@
 #include <memdraw.h>
 
 #define DBG if(0)
-#define RGB2K(r,g,b)	((299*((ulong)(r))+587*((ulong)(g))+114*((ulong)(b)))/1000)
+#define RGB2K(r,g,b)	((299*((u32int)(r))+587*((u32int)(g))+114*((u32int)(b)))/1000)
 
 /*
  * This program tests the 'memimagedraw' primitive stochastically.
@@ -20,8 +20,8 @@ void	verifyone(void);
 void	verifyline(void);
 void	verifyrect(void);
 void	verifyrectrepl(int, int);
-void putpixel(Memimage *img, Point pt, ulong nv);
-ulong rgbatopix(uchar, uchar, uchar, uchar);
+void putpixel(Memimage *img, Point pt, u32int nv);
+u32int rgbatopix(uchar, uchar, uchar, uchar);
 
 char *dchan, *schan, *mchan;
 int dbpp, sbpp, mbpp;
@@ -47,7 +47,7 @@ Memimage	*ones;
 uchar	*dstbits;
 uchar	*srcbits;
 uchar	*maskbits;
-ulong	*savedstbits;
+u32int	*savedstbits;
 
 void
 rdb(void)
@@ -62,7 +62,7 @@ iprint(char *fmt, ...)
 	char buf[1024];
 
 	va_start(va, fmt);
-	n = doprint(buf, buf+sizeof buf, fmt, va) - buf;
+	n = vseprint(buf, buf+sizeof buf, fmt, va) - buf;
 	va_end(va);
 
 	write(1,buf,n);
@@ -104,7 +104,7 @@ main(int argc, char *argv[])
 		exits("usage");
 	}
 
-	fmtinstall('b', numbconv);	/* binary! */
+//	fmtinstall('b', numbconv);	/* binary! */
 
 	fprint(2, "%s -x %d -y %d -s 0x%x %s %s %s\n", argv0, Xrange, Yrange, seed, dchan, schan, mchan);
 	srand(seed);
@@ -132,7 +132,7 @@ main(int argc, char *argv[])
 	sbpp = src->depth;
 	mbpp = mask->depth;
 	dpm = 0xFF ^ (0xFF>>dbpp);
-	memset(ones->data->bdata, 0xFF, ones->width*sizeof(ulong)*Yrange);
+	memset(ones->data->bdata, 0xFF, ones->width*sizeof(u32int)*Yrange);
 
 
 	fprint(2, "dtest: verify single pixel operation\n");
@@ -161,7 +161,7 @@ main(int argc, char *argv[])
  * a list of characters to put at various points in the picture.
  */
 static void
-Bprintr5g6b5(Biobuf *bio, char*, ulong v)
+Bprintr5g6b5(Biobuf *bio, char* _, u32int v)
 {
 	int r,g,b;
 	r = (v>>11)&31;
@@ -171,7 +171,7 @@ Bprintr5g6b5(Biobuf *bio, char*, ulong v)
 }
 
 static void
-Bprintr5g5b5a1(Biobuf *bio, char*, ulong v)
+Bprintr5g5b5a1(Biobuf *bio, char* _, u32int v)
 {
 	int r,g,b,a;
 	r = (v>>11)&31;
@@ -188,9 +188,9 @@ dumpimage(char *name, Memimage *img, void *vdata, Point labelpt)
 	uchar *data;
 	uchar *p;
 	char *arg;
-	void (*fmt)(Biobuf*, char*, ulong);
+	void (*fmt)(Biobuf*, char*, u32int);
 	int npr, x, y, nb, bpp;
-	ulong v, mask;
+	u32int v, mask;
 	Rectangle r;
 
 	fmt = nil;
@@ -199,11 +199,11 @@ dumpimage(char *name, Memimage *img, void *vdata, Point labelpt)
 	case 1:
 	case 2:
 	case 4:
-		fmt = (void(*)(Biobuf*,char*,ulong))Bprint;
+		fmt = (void(*)(Biobuf*,char*,u32int))Bprint;
 		arg = "%.1ux";
 		break;
 	case 8:
-		fmt = (void(*)(Biobuf*,char*,ulong))Bprint;
+		fmt = (void(*)(Biobuf*,char*,u32int))Bprint;
 		arg = "%.2ux";
 		break;
 	case 16:
@@ -211,16 +211,16 @@ dumpimage(char *name, Memimage *img, void *vdata, Point labelpt)
 		if(img->chan == RGB16)
 			fmt = Bprintr5g6b5;
 		else{
-			fmt = (void(*)(Biobuf*,char*,ulong))Bprint;
+			fmt = (void(*)(Biobuf*,char*,u32int))Bprint;
 			arg = "%.4ux";
 		}
 		break;
 	case 24:
-		fmt = (void(*)(Biobuf*,char*,ulong))Bprint;
+		fmt = (void(*)(Biobuf*,char*,u32int))Bprint;
 		arg = "%.6lux";
 		break;
 	case 32:
-		fmt = (void(*)(Biobuf*,char*,ulong))Bprint;
+		fmt = (void(*)(Biobuf*,char*,u32int))Bprint;
 		arg = "%.8lux";
 		break;
 	}
@@ -259,7 +259,7 @@ dumpimage(char *name, Memimage *img, void *vdata, Point labelpt)
 
 			while(nb < bpp){
 				v &= (1<<nb)-1;
-				v |= (ulong)(*p++) << nb;
+				v |= (u32int)(*p++) << nb;
 				nb += 8;
 			}
 			nb -= bpp;
@@ -307,9 +307,9 @@ checkone(Point p, Point sp, Point mp)
 void
 checkline(Rectangle r, Point sp, Point mp, int y, Memimage *stmp, Memimage *mtmp)
 {
-	ulong *dp;
+	u32int *dp;
 	int nb;
-	ulong *saved;
+	u32int *saved;
 
 	dp = wordaddr(dst, Pt(0, y));
 	saved = savedstbits + y*dst->width;
@@ -377,9 +377,9 @@ verifyonemask(void)
 
 	fill(dst, dstbits);
 	fill(src, srcbits);
-	memmove(dst->data->bdata, dstbits, dst->width*sizeof(ulong)*Yrange);
-	memmove(src->data->bdata, srcbits, src->width*sizeof(ulong)*Yrange);
-	memmove(mask->data->bdata, maskbits, mask->width*sizeof(ulong)*Yrange);
+	memmove(dst->data->bdata, dstbits, dst->width*sizeof(u32int)*Yrange);
+	memmove(src->data->bdata, srcbits, src->width*sizeof(u32int)*Yrange);
+	memmove(mask->data->bdata, maskbits, mask->width*sizeof(u32int)*Yrange);
 
 	dp.x = nrand(Xrange);
 	dp.y = nrand(Yrange);
@@ -391,12 +391,12 @@ verifyonemask(void)
 	mp.y = nrand(Yrange);
 
 	drawonepixel(dst, dp, src, sp, mask, mp);
-	memmove(mask->data->bdata, maskbits, mask->width*sizeof(ulong)*Yrange);
-	memmove(savedstbits, dst->data->bdata, dst->width*sizeof(ulong)*Yrange);
+	memmove(mask->data->bdata, maskbits, mask->width*sizeof(u32int)*Yrange);
+	memmove(savedstbits, dst->data->bdata, dst->width*sizeof(u32int)*Yrange);
 	
-	memmove(dst->data->bdata, dstbits, dst->width*sizeof(ulong)*Yrange);
+	memmove(dst->data->bdata, dstbits, dst->width*sizeof(u32int)*Yrange);
 	memimagedraw(dst, Rect(dp.x, dp.y, dp.x+1, dp.y+1), src, sp, mask, mp, SoverD);
-	memmove(mask->data->bdata, maskbits, mask->width*sizeof(ulong)*Yrange);
+	memmove(mask->data->bdata, maskbits, mask->width*sizeof(u32int)*Yrange);
 
 	checkone(dp, sp, mp);
 }
@@ -435,9 +435,9 @@ verifylinemask(void)
 
 	fill(dst, dstbits);
 	fill(src, srcbits);
-	memmove(dst->data->bdata, dstbits, dst->width*sizeof(ulong)*Yrange);
-	memmove(src->data->bdata, srcbits, src->width*sizeof(ulong)*Yrange);
-	memmove(mask->data->bdata, maskbits, mask->width*sizeof(ulong)*Yrange);
+	memmove(dst->data->bdata, dstbits, dst->width*sizeof(u32int)*Yrange);
+	memmove(src->data->bdata, srcbits, src->width*sizeof(u32int)*Yrange);
+	memmove(mask->data->bdata, maskbits, mask->width*sizeof(u32int)*Yrange);
 
 	dr.min.x = nrand(Xrange-1);
 	dr.min.y = nrand(Yrange-1);
@@ -454,9 +454,9 @@ verifylinemask(void)
 	up = mp;
 	for(x=dr.min.x; x<dr.max.x && tp.x<Xrange && up.x<Xrange; x++,tp.x++,up.x++)
 		memimagedraw(dst, Rect(x, dr.min.y, x+1, dr.min.y+1), src, tp, mask, up, SoverD);
-	memmove(savedstbits, dst->data->bdata, dst->width*sizeof(ulong)*Yrange);
+	memmove(savedstbits, dst->data->bdata, dst->width*sizeof(u32int)*Yrange);
 
-	memmove(dst->data->bdata, dstbits, dst->width*sizeof(ulong)*Yrange);
+	memmove(dst->data->bdata, dstbits, dst->width*sizeof(u32int)*Yrange);
 
 	memimagedraw(dst, dr, src, sp, mask, mp, SoverD);
 	checkline(dr, drawrepl(src->r, sp), drawrepl(mask->r, mp), dr.min.y, nil, nil);
@@ -496,9 +496,9 @@ verifyrectmask(void)
 
 	fill(dst, dstbits);
 	fill(src, srcbits);
-	memmove(dst->data->bdata, dstbits, dst->width*sizeof(ulong)*Yrange);
-	memmove(src->data->bdata, srcbits, src->width*sizeof(ulong)*Yrange);
-	memmove(mask->data->bdata, maskbits, mask->width*sizeof(ulong)*Yrange);
+	memmove(dst->data->bdata, dstbits, dst->width*sizeof(u32int)*Yrange);
+	memmove(src->data->bdata, srcbits, src->width*sizeof(u32int)*Yrange);
+	memmove(mask->data->bdata, maskbits, mask->width*sizeof(u32int)*Yrange);
 
 	dr.min.x = nrand(Xrange-1);
 	dr.min.y = nrand(Yrange-1);
@@ -519,9 +519,9 @@ verifyrectmask(void)
 		tp.x = sp.x;
 		up.x = mp.x;
 	}
-	memmove(savedstbits, dst->data->bdata, dst->width*sizeof(ulong)*Yrange);
+	memmove(savedstbits, dst->data->bdata, dst->width*sizeof(u32int)*Yrange);
 
-	memmove(dst->data->bdata, dstbits, dst->width*sizeof(ulong)*Yrange);
+	memmove(dst->data->bdata, dstbits, dst->width*sizeof(u32int)*Yrange);
 
 	memimagedraw(dst, dr, src, sp, mask, mp, SoverD);
 	for(y=0; y<Yrange; y++)
@@ -613,7 +613,7 @@ replicate(Memimage *i, Memimage *tmp)
 	assert(r.min.y >= 0);
 	assert(r.max.y <= Yrange);
 	/* copy from i to tmp so we have just the replicated bits */
-	nb = tmp->width*sizeof(ulong)*Yrange;
+	nb = tmp->width*sizeof(u32int)*Yrange;
 	memset(tmp->data->bdata, 0, nb);
 	memimagedraw(tmp, r, i, r.min, ones, r.min, SoverD);
 	memmove(i->data->bdata, tmp->data->bdata, nb);
@@ -668,9 +668,9 @@ verifyrectmaskrepl(int srcrepl, int maskrepl)
 	fill(dst, dstbits);
 	fill(src, srcbits);
 
-	memmove(dst->data->bdata, dstbits, dst->width*sizeof(ulong)*Yrange);
-	memmove(src->data->bdata, srcbits, src->width*sizeof(ulong)*Yrange);
-	memmove(mask->data->bdata, maskbits, mask->width*sizeof(ulong)*Yrange);
+	memmove(dst->data->bdata, dstbits, dst->width*sizeof(u32int)*Yrange);
+	memmove(src->data->bdata, srcbits, src->width*sizeof(u32int)*Yrange);
+	memmove(mask->data->bdata, maskbits, mask->width*sizeof(u32int)*Yrange);
 
 	if(srcrepl){
 		replicate(src, stmp);
@@ -695,9 +695,9 @@ DBG	print("smalldraws\n");
 	for(tp.y=sp.y,up.y=mp.y,y=dr.min.y; y<dr.max.y && tp.y<Yrange && up.y<Yrange; y++,tp.y++,up.y++)
 		for(tp.x=sp.x,up.x=mp.x,x=dr.min.x; x<dr.max.x && tp.x<Xrange && up.x<Xrange; x++,tp.x++,up.x++)
 			memimagedraw(dst, Rect(x, y, x+1, y+1), s, tp, m, up, SoverD);
-	memmove(savedstbits, dst->data->bdata, dst->width*sizeof(ulong)*Yrange);
+	memmove(savedstbits, dst->data->bdata, dst->width*sizeof(u32int)*Yrange);
 
-	memmove(dst->data->bdata, dstbits, dst->width*sizeof(ulong)*Yrange);
+	memmove(dst->data->bdata, dstbits, dst->width*sizeof(u32int)*Yrange);
 
 DBG	print("bigdraw\n");
 	memimagedraw(dst, dr, src, sp, mask, mp, SoverD);
@@ -729,15 +729,15 @@ verifyrectrepl(int srcrepl, int maskrepl)
 
 /*
  * Trivial draw implementation.
- * Color values are passed around as ulongs containing ααRRGGBB
+ * Color values are passed around as u32ints containing ααRRGGBB
  */
 
 /*
  * Convert v, which is nhave bits wide, into its nwant bits wide equivalent.
  * Replicates to widen the value, truncates to narrow it.
  */
-ulong
-replbits(ulong v, int nhave, int nwant)
+u32int
+replbits(u32int v, int nhave, int nwant)
 {
 	v &= (1<<nhave)-1;
 	for(; nhave<nwant; nhave*=2)
@@ -750,7 +750,7 @@ replbits(ulong v, int nhave, int nwant)
  * Decode a pixel into the uchar* values.
  */
 void
-pixtorgba(ulong v, uchar *r, uchar *g, uchar *b, uchar *a)
+pixtorgba(u32int v, uchar *r, uchar *g, uchar *b, uchar *a)
 {
 	*a = v>>24;
 	*r = v>>16;
@@ -759,9 +759,9 @@ pixtorgba(ulong v, uchar *r, uchar *g, uchar *b, uchar *a)
 }
 
 /*
- * Convert uchar channels into ulong pixel.
+ * Convert uchar channels into u32int pixel.
  */
-ulong
+u32int
 rgbatopix(uchar r, uchar g, uchar b, uchar a)
 {
 	return (a<<24)|(r<<16)|(g<<8)|b;
@@ -770,12 +770,12 @@ rgbatopix(uchar r, uchar g, uchar b, uchar a)
 /*
  * Retrieve the pixel value at pt in the image.
  */
-ulong
+u32int
 getpixel(Memimage *img, Point pt)
 {
 	uchar r, g, b, a, *p;
 	int nbits, npack, bpp;
-	ulong v, c, rbits, bits;
+	u32int v, c, rbits, bits;
 
 	r = g = b = 0;
 	a = ~0;	/* default alpha is full */
@@ -882,10 +882,10 @@ getmask(Memimage *img, Point pt)
  * less than 32 bits.
  */
 void
-putpixel(Memimage *img, Point pt, ulong nv)
+putpixel(Memimage *img, Point pt, u32int nv)
 {
 	uchar r, g, b, a, *p, *q;
-	ulong c, mask, bits, v;
+	u32int c, mask, bits, v;
 	int bpp, sh, npack, nbits;
 
 	pixtorgba(nv, &r, &g, &b, &a);
@@ -974,7 +974,7 @@ drawonepixel(Memimage *dst, Point dp, Memimage *src, Point sp, Memimage *mask, P
 	pixtorgba(getpixel(dst, dp), &dr, &dg, &db, &da);
 	pixtorgba(getpixel(src, sp), &sr, &sg, &sb, &sa);
 	m = getmask(mask, mp);
-	M = 255-(sa*m)/255;
+	M = 255-(sa*m + 127)/255;
 
 DBG print("dst %x %x %x %x src %x %x %x %x m %x = ", dr,dg,db,da, sr,sg,sb,sa, m);
 	if(dst->flags&Fgrey){
@@ -985,18 +985,18 @@ DBG print("dst %x %x %x %x src %x %x %x %x m %x = ", dr,dg,db,da, sr,sg,sb,sa, m
 		 */
 		sk = RGB2K(sr, sg, sb);
 		dk = RGB2K(dr, dg, db);
-		dk = (sk*m + dk*M)/255;
+		dk = (sk*m + dk*M + 127)/255;
 		dr = dg = db = dk;
-		da = (sa*m + da*M)/255;
+		da = (sa*m + da*M + 127)/255;
 	}else{
 		/*
 		 * True color alpha calculation treats all channels (including alpha)
 		 * the same.  It might have been nice to use an array, but oh well.
 		 */
-		dr = (sr*m + dr*M)/255;
-		dg = (sg*m + dg*M)/255;
-		db = (sb*m + db*M)/255;
-		da = (sa*m + da*M)/255;
+		dr = (sr*m + dr*M + 127)/255;
+		dg = (sg*m + dg*M + 127)/255;
+		db = (sb*m + db*M + 127)/255;
+		da = (sa*m + da*M + 127)/255;
 	}
 
 DBG print("%x %x %x %x\n", dr,dg,db,da);

@@ -3,7 +3,7 @@
 #include <draw.h>
 #include <memdraw.h>
 
-#define	CHUNK	8000
+#define	CHUNK	16000
 
 #define	HSHIFT	3	/* HSHIFT==5 runs slightly faster, but hash table is 64x bigger */
 #define	NHASH	(1<<(HSHIFT*NMATCH))
@@ -26,8 +26,8 @@ writememimage(int fd, Memimage *i)
 	int h;					/* hash value */
 	uchar *line, *eline;			/* input line, end pointer */
 	uchar *data, *edata;			/* input buffer, end pointer */
-	ulong n;				/* length of input buffer */
-	ulong nb;				/* # of bytes returned by unloadimage */
+	u32int n;				/* length of input buffer */
+	u32int nb;				/* # of bytes returned by unloadimage */
 	int bpl;				/* input line length */
 	int offs, runlen;			/* offset, length of consumed data */
 	uchar dumpbuf[NDUMP];			/* dump accumulator */

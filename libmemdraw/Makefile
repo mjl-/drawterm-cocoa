@@ -3,6 +3,7 @@ include ../Make.config
 LIB=libmemdraw.a
 
 OFILES=\
+	addr.$O\
 	alloc.$O\
 	arc.$O\
 	cload.$O\
@@ -13,8 +14,10 @@ OFILES=\
 	ellipse.$O\
 	fillpoly.$O\
 	hwdraw.$O\
+	iprint.$O\
 	line.$O\
 	load.$O\
+	memsetchan.$O\
 	openmemsubfont.$O\
 	poly.$O\
 	read.$O\

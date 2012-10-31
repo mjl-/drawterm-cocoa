@@ -9,6 +9,7 @@
 #include <authsrv.h>
 #include <libsec.h>
 #include "drawterm.h"
+#include "user.h"
 
 #undef socket
 #undef connect

@@ -2,7 +2,6 @@
 #include <libc.h>
 #include <draw.h>
 #include <memdraw.h>
-#include <memlayer.h>
 
 /*
  * ellipse(dst, c, a, b, t, src, sp)

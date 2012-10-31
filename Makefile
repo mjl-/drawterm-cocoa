@@ -19,6 +19,7 @@ LIBS1=\
 	exportfs/libexportfs.a\
 	libauth/libauth.a\
 	libauthsrv/libauthsrv.a\
+	libbio/libbio.a\
 	libsec/libsec.a\
 	libmp/libmp.a\
 	libmemdraw/libmemdraw.a\
@@ -68,6 +69,9 @@ libmemlayer/libmemlayer.a:
 
 libdraw/libdraw.a:
 	(cd libdraw; $(MAKE))
+
+libbio/libbio.a:
+	(cd libbio; $(MAKE))
 
 libc/libc.a:
 	(cd libc; $(MAKE))

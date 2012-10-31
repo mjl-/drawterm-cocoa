@@ -1,5 +1,6 @@
 #include	"u.h"
 #include	"lib.h"
+#include	"mem.h"
 #include	"dat.h"
 #include	"fns.h"
 #include	"error.h"
@@ -19,6 +20,7 @@ static int debugging;
 /*
  *  IO queues
  */
+
 struct Queue
 {
 	Lock lk;
@@ -74,7 +76,8 @@ freeblist(Block *b)
 
 	for(; b != 0; b = next){
 		next = b->next;
-		b->next = 0;
+		if(b->ref == 1)
+			b->next = nil;
 		freeb(b);
 	}
 }
@@ -96,7 +99,7 @@ padblock(Block *bp, int size)
 		}
 
 		if(bp->next)
-			panic("padblock 0x%p", getcallerpc(&bp));
+			panic("padblock %#p", getcallerpc(&bp));
 		n = BLEN(bp);
 		padblockcnt++;
 		nbp = allocb(size+n);
@@ -110,7 +113,7 @@ padblock(Block *bp, int size)
 		size = -size;
 
 		if(bp->next)
-			panic("padblock 0x%p", getcallerpc(&bp));
+			panic("padblock %#p", getcallerpc(&bp));
 
 		if(bp->lim - bp->wp >= size)
 			return bp;
@@ -225,7 +228,8 @@ pullupblock(Block *bp, int n)
 		} else {
 			/* shouldn't happen but why crash if it does */
 			if(i < 0){
-				print("pullup negative length packet\n");
+				print("pullup negative length packet, called from %#p\n",
+					getcallerpc(&bp));
 				i = 0;
 			}
 			memmove(bp->wp, nbp->rp, i);
@@ -571,9 +575,10 @@ qpass(Queue *q, Block *b)
 		return -1;
 	}
 	if(q->state & Qclosed){
+		len = BALLOC(b);
 		freeblist(b);
 		iunlock(&q->lk);
-		return BALLOC(b);
+		return len;
 	}
 
 	/* add buffer to queue */
@@ -950,7 +955,6 @@ mem2bl(uchar *p, int len)
 			n = Maxatomic;
 
 		*l = b = allocb(n);
-	/*	setmalloctag(b, (up->text[0]<<24)|(up->text[1]<<16)|(up->text[2]<<8)|up->text[3]); */
 		memmove(b->wp, p, n);
 		b->wp += n;
 		p += n;
@@ -1159,6 +1163,7 @@ long
 qbwrite(Queue *q, Block *b)
 {
 	int n, dowakeup;
+	Proc *p;
 
 	n = BLEN(b);
 
@@ -1221,11 +1226,10 @@ qbwrite(Queue *q, Block *b)
 
 	/* wakeup anyone consuming at the other end */
 	if(dowakeup){
-		wakeup(&q->rr);
+		p = wakeup(&q->rr);
 
 		/* if we just wokeup a higher priority process, let it run */
 	/*
-		p = wakeup(&q->rr);
 		if(p != nil && p->priority > up->priority)
 			sched();
 	 */
@@ -1270,7 +1274,7 @@ qwrite(Queue *q, void *vp, int len)
 	uchar *p = vp;
 
 	QDEBUG if(!islo())
-		print("qwrite hi %p\n", getcallerpc(&q));
+		print("qwrite hi %#p\n", getcallerpc(&q));
 
 	sofar = 0;
 	do {
@@ -1279,7 +1283,6 @@ qwrite(Queue *q, void *vp, int len)
 			n = Maxatomic;
 
 		b = allocb(n);
-	/*	setmalloctag(b, (up->text[0]<<24)|(up->text[1]<<16)|(up->text[2]<<8)|up->text[3]); */
 		if(waserror()){
 			freeb(b);
 			nexterror();
@@ -1299,6 +1302,9 @@ qwrite(Queue *q, void *vp, int len)
 /*
  *  used by print() to write to a queue.  Since we may be splhi or not in
  *  a process, don't qlock.
+ *
+ *  this routine merges adjacent blocks if block n+1 will fit into
+ *  the free space of block n.
  */
 int
 qiwrite(Queue *q, void *vp, int len)
@@ -1322,6 +1328,15 @@ qiwrite(Queue *q, void *vp, int len)
 		b->wp += n;
 
 		ilock(&q->lk);
+
+		/* we use an artificially high limit for kernel prints since anything
+		 * over the limit gets dropped
+		 */
+		if(q->dlen >= 16*1024){
+			iunlock(&q->lk);
+			freeb(b);
+			break;
+		}
 
 		QDEBUG checkb(b, "qiwrite");
 		if(q->bfirst)

@@ -1,14 +1,15 @@
 #include "u.h"
 #include "lib.h"
+#include 	"mem.h"
 #include "dat.h"
 #include "fns.h"
 #include "error.h"
 
 #include "devip.h"
 
-void		hnputl(void *p, unsigned long v);
+void		hnputl(void *p, uint v);
 void		hnputs(void *p, unsigned short v);
-unsigned long	nhgetl(void *p);
+uint	nhgetl(void *p);
 unsigned short	nhgets(void *p);
 unsigned long	parseip(char *to, char *from);
 void	csclose(Chan*);
@@ -640,7 +641,7 @@ eipfmt(Fmt *f)
 }
 
 void
-hnputl(void *p, unsigned long v)
+hnputl(void *p, uint v)
 {
 	unsigned char *a;
 
@@ -661,7 +662,7 @@ hnputs(void *p, unsigned short v)
 	a[1] = v;
 }
 
-unsigned long
+uint
 nhgetl(void *p)
 {
 	unsigned char *a;

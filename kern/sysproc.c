@@ -1,5 +1,6 @@
 #include	"u.h"
 #include	"lib.h"
+#include 	"mem.h"
 #include	"dat.h"
 #include	"fns.h"
 #include	"error.h"
@@ -22,8 +23,8 @@ sysexits(ulong *arg)
 				buf[ERRMAX-1] = 0;
 				status = buf;
 			}
+			poperror();
 		}
-		poperror();
 
 	}
 	pexit(status, 1);

@@ -2,7 +2,6 @@
 #include <libc.h>
 #include <draw.h>
 #include <memdraw.h>
-#include <memlayer.h>
 
 enum
 {
@@ -11,7 +10,6 @@ enum
 	Arrow3 = 3,
 };
 
-#ifdef NOT
 static
 int
 lmin(int a, int b)
@@ -20,7 +18,6 @@ lmin(int a, int b)
 		return a;
 	return b;
 }
-#endif
 
 static
 int
@@ -50,7 +47,7 @@ horline1(Memimage *dst, Point p0, Point p1, int srcval, Rectangle clipr)
 
 	deltax = p1.x - p0.x;
 	deltay = p1.y - p0.y;
-	dd = dst->width*sizeof(ulong);
+	dd = dst->width*sizeof(u32int);
 	dy = 1;
 	if(deltay < 0){
 		dd = -dd;
@@ -117,7 +114,7 @@ verline1(Memimage *dst, Point p0, Point p1, int srcval, Rectangle clipr)
 			e += deltay;
 		}else
 			e += deltax;
-		d += dst->width*sizeof(ulong);
+		d += dst->width*sizeof(u32int);
 		m >>= bpp;
 		if(m == 0)
 			m = m0;
@@ -370,6 +367,7 @@ _memimageline(Memimage *dst, Point p0, Point p1, int end0, int end1, int radius,
 			r.max.y += radius+1;
 		}
 		oclipr = dst->clipr;
+		sp = addpt(r.min, d);
 		dst->clipr = clipr;
 		memimagedraw(dst, r, src, sp, memopaque, sp, op);
 		dst->clipr = oclipr;
@@ -422,7 +420,7 @@ _memimageline(Memimage *dst, Point p0, Point p1, int end0, int end1, int radius,
 		break;
 	case Endarrow:
 		arrowend(q, pp, end1, sin, cos, radius);
-		_memfillpolysc(dst, pp, 5, ~0, src, addpt(pts[0], mulpt(d, ICOSSCALE)), 1, 10, 1, op);
+		_memfillpolysc(dst, pp, 5, ~0, src, addpt(pp[0], mulpt(d, ICOSSCALE)), 1, 10, 1, op);
 		pp[1] = pp[4];
 		pp += 2;
 	}

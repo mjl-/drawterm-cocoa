@@ -46,12 +46,13 @@ extern	int	stat(char*, uchar*, int);
 extern	long	write(int, void*, long);
 extern	int	wstat(char*, uchar*, int);
 extern	void	werrstr(char* ,...);
-
+/*
 extern	Dir	*dirstat(char*);
 extern	Dir	*dirfstat(int);
 extern	int	dirwstat(char*, Dir*);
 extern	int	dirfwstat(int, Dir*);
 extern	long	dirread(int, Dir*, long);
+*/
 
 extern	int	lfdfd(int);
 
@@ -80,14 +81,12 @@ extern	int	getpid(void);
 extern	void	panic(char*, ...);
 extern	void	sleep(int);
 extern	void	osyield(void);
-extern	void	setmalloctag(void*, uintptr);
 extern	int	errstr(char*, uint);
-extern	int	rerrstr(char*, uint);
+// extern	int	rerrstr(char*, uint);
 extern	int	encrypt(void*, void*, int);
 extern	int	decrypt(void*, void*, int);
-extern	void	qlock(QLock*);
-extern	void	qunlock(QLock*);
 extern	vlong	nsec(void);
 extern	void	lock(Lock*);
 extern	void	unlock(Lock*);
 extern	int	iprint(char*, ...);
+

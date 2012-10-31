@@ -38,6 +38,7 @@ OFILES=\
 	prng.$O\
 	probably_prime.$O\
 	rc4.$O\
+	readcert.$O\
 	rsaalloc.$O\
 	rsadecrypt.$O\
 	rsaencrypt.$O\
@@ -45,14 +46,23 @@ OFILES=\
 	rsagen.$O\
 	rsaprivtopub.$O\
 	sha1.$O\
+	sha1block.$O\
 	sha1pickle.$O\
-	smallprimes.$O
+	sha2_64.$O\
+	sha2_128.$O\
+	sha2block64.$O\
+	sha2block128.$O\
+	smallprimes.$O\
+	smallprimetest.$O\
+
+#	thumb.$O\
+#	tlshand.$O\
+#	x509.$O\
 
 default: $(LIB)
 $(LIB): $(OFILES)
 	$(AR) r $(LIB) $(OFILES)
 	$(RANLIB) $(LIB)
 
-%.$O: %.c
-	$(CC) $(CFLAGS) $*.c
-
+%.$O: port/%.c
+	$(CC) $(CFLAGS) port/$*.c

@@ -1,5 +1,6 @@
 #include	"u.h"
 #include	"lib.h"
+#include	"mem.h"
 #include	"dat.h"
 #include	"fns.h"
 #include	"error.h"
@@ -26,7 +27,7 @@ struct Mntrpc
 	Mnt*	m;		/* Mount device during rpc */
 	Rendez	r;		/* Place to hang out */
 	uchar*	rpc;		/* I/O Data buffer */
-	uint		rpclen;	/* len of buffer */
+	uint	rpclen;		/* len of buffer */
 	Block	*b;		/* reply blocks */
 	char	done;		/* Rpc completed */
 	uvlong	stime;		/* start time for mnt statistics */
@@ -54,7 +55,6 @@ struct Mntalloc
 	ulong	tagmask[NMASK];
 }mntalloc;
 
-void	mattach(Mnt*, Chan*, char*);
 Mnt*	mntchk(Chan*);
 void	mntdirfix(uchar*, Chan*);
 Mntrpc*	mntflushalloc(Mntrpc*, ulong);
@@ -73,7 +73,7 @@ int	rpcattn(void*);
 Chan*	mntchan(void);
 
 char	Esbadstat[] = "invalid directory entry received from server";
-char Enoversion[] = "version not established for mount channel";
+char	Enoversion[] = "version not established for mount channel";
 
 
 void (*mntstats)(int, Chan*, uvlong, ulong);
@@ -217,7 +217,7 @@ mntversion(Chan *c, char *version, int msize, int returnlen)
 	m->version = nil;
 	kstrdup(&m->version, f.version);
 	m->id = mntalloc.id++;
-	m->q = qopen(10*MAXRPC, 0, 0, nil);
+	m->q = qopen(10*MAXRPC, 0, nil, nil);
 	m->msize = f.msize;
 	unlock(&mntalloc.lk);
 
@@ -477,28 +477,9 @@ mntstat(Chan *c, uchar *dp, int n)
 	r->request.fid = c->fid;
 	mountrpc(m, r);
 
-/* r->reply.nstat is 16 bits
-	if(r->reply.nstat >= 1<<16)
-		error("returned stat buffer count too large");
-*/
-
 	if(r->reply.nstat > n){
-		/*
-		 * 12/31/2002 RSC
-		 * 
-		 * This should be nstat-2, which is the first two
-		 * bytes of the stat buffer.  But dirstat and dirfstat
-		 * depended on getting the full nstat (they didn't
-		 * add BIT16SZ themselves).  I fixed dirstat and dirfstat
-		 * but am leaving this unchanged for now.  After a
-		 * few months, once enough of the relevant binaries
-		 * have been recompiled for other reasons, we can
-		 * change this to nstat-2.  Devstat gets this right
-		 * (via convD2M).
-		 */
-		/* doesn't fit; just patch the count and return */
-		PBIT16((uchar*)dp, r->reply.nstat);
 		n = BIT16SZ;
+		PBIT16((uchar*)dp, r->reply.nstat-2);
 	}else{
 		n = r->reply.nstat;
 		memmove(dp, r->reply.stat, n);
@@ -746,7 +727,7 @@ mntrdwr(int type, Chan *c, void *buf, long n, vlong off)
 		uba += nr;
 		cnt += nr;
 		n -= nr;
-		if(nr != nreq || n == 0)
+		if(nr != nreq || n == 0 || up->nnote)
 			break;
 	}
 	return cnt;
@@ -773,13 +754,13 @@ mountrpc(Mnt *m, Mntrpc *r)
 		if(t == r->request.type+1)
 			break;
 		sn = "?";
-		if(m->c->name != nil)
-			sn = m->c->name->s;
+		if(m->c->path != nil)
+			sn = m->c->path->s;
 		cn = "?";
-		if(r->c != nil && r->c->name != nil)
-			cn = r->c->name->s;
-		print("mnt: proc %lud: mismatch from %s %s rep 0x%lux tag %d fid %d T%d R%d rp %d\n",
-			up->pid, sn, cn,
+		if(r->c != nil && r->c->path != nil)
+			cn = r->c->path->s;
+		print("mnt: proc %s %lud: mismatch from %s %s rep %#p tag %d fid %d T%d R%d rp %d\n",
+			up->text, up->pid, sn, cn,
 			r, r->request.tag, r->request.fid, r->request.type,
 			r->reply.type, r->reply.tag);
 		error(Emountrpc);
@@ -852,7 +833,7 @@ doread(Mnt *m, int len)
 		b = devtab[m->c->type]->bread(m->c, m->msize, 0);
 		if(b == nil)
 			return -1;
-		if(BLEN(b) == 0){
+		if(blocklen(b) == 0){
 			freeblist(b);
 			return -1;
 		}
@@ -875,7 +856,7 @@ mntrpcread(Mnt *m, Mntrpc *r)
 		return -1;
 	nb = pullupqueue(m->q, BIT32SZ+BIT8SZ+BIT16SZ);
 
-	/* read in the rest of the message, avoid rediculous (for now) message sizes */
+	/* read in the rest of the message, avoid ridiculous (for now) message sizes */
 	len = GBIT32(nb->rp);
 	if(len > m->msize){
 		qdiscard(m->q, qlen(m->q));
@@ -1037,7 +1018,7 @@ alloctag(void)
 
 	for(i = 0; i < NMASK; i++){
 		v = mntalloc.tagmask[i];
-		if(v == ~0)
+		if(v == ~0UL)
 			continue;
 		for(j = 0; j < 1<<TAGSHIFT; j++)
 			if((v & (1<<j)) == 0){
@@ -1113,8 +1094,8 @@ mntfree(Mntrpc *r)
 	lock(&mntalloc.lk);
 	if(mntalloc.nrpcfree >= 10){
 		free(r->rpc);
-		free(r);
 		freetag(r->request.tag);
+		free(r);
 	}
 	else{
 		r->list = mntalloc.rpcfree;
@@ -1152,15 +1133,15 @@ mntchk(Chan *c)
 	/* This routine is mostly vestiges of prior lives; now it's just sanity checking */
 
 	if(c->mchan == nil)
-		panic("mntchk 1: nil mchan c %s\n", c2name(c));
+		panic("mntchk 1: nil mchan c %s\n", chanpath(c));
 
 	m = c->mchan->mux;
 
 	if(m == nil)
-		print("mntchk 2: nil mux c %s c->mchan %s \n", c2name(c), c2name(c->mchan));
+		print("mntchk 2: nil mux c %s c->mchan %s \n", chanpath(c), chanpath(c->mchan));
 
 	/*
-	 * Was it closed and reused (was error(Eshutdown); now, it can't happen)
+	 * Was it closed and reused (was error(Eshutdown); now, it cannot happen)
 	 */
 	if(m->id == 0 || m->id >= c->dev)
 		panic("mntchk 3: can't happen");

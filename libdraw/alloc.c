@@ -3,13 +3,18 @@
 #include <draw.h>
 
 Image*
-allocimage(Display *d, Rectangle r, ulong chan, int repl, ulong val)
+allocimage(Display *d, Rectangle r, u32int chan, int repl, u32int val)
 {
-	return _allocimage(nil, d, r, chan, repl, val, 0, 0);
+	Image*	i;
+
+	i =  _allocimage(nil, d, r, chan, repl, val, 0, 0);
+	if (i)
+		setmalloctag(i, getcallerpc(&d));
+	return i;
 }
 
 Image*
-_allocimage(Image *ai, Display *d, Rectangle r, ulong chan, int repl, ulong val, int screenid, int refresh)
+_allocimage(Image *ai, Display *d, Rectangle r, u32int chan, int repl, u32int val, int screenid, int refresh)
 {
 	uchar *a;
 	char *err;
@@ -101,7 +106,7 @@ namedimage(Display *d, char *name)
 	char *err, buf[12*12+1];
 	Image *i;
 	int id, n;
-	ulong chan;
+	u32int chan;
 
 	err = 0;
 	i = 0;
@@ -196,7 +201,7 @@ _freeimage1(Image *i)
 	Display *d;
 	Image *w;
 
-	if(i == 0)
+	if(i == 0 || i->display == 0)
 		return 0;
 	/* make sure no refresh events occur on this if we block in the write */
 	d = i->display;

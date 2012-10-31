@@ -531,7 +531,7 @@ static	ulong		xwhite;
 static	int	putsnarf, assertsnarf;
 
 	Memimage *gscreen;
-	Screeninfo screen;
+	Screeninfo screeninfo;
 
 void
 flushmemscreen(Rectangle r)
@@ -794,8 +794,8 @@ xinitscreen(void)
 	if(xscreenchan == 0)
 		panic("drawterm: unknown screen pixel format\n");
 		
-	screen = DefaultScreenOfDisplay(xdisplay);
-	xcmap = DefaultColormapOfScreen(screen);
+	screeninfo = DefaultScreenOfDisplay(xdisplay);
+	xcmap = DefaultColormapOfScreen(screeninfo);
 
 	if(xvis->class != StaticColor){
 		graphicscmap(map);
@@ -803,8 +803,8 @@ xinitscreen(void)
 	}
 
 	r.min = ZP;
-	r.max.x = WidthOfScreen(screen);
-	r.max.y = HeightOfScreen(screen);
+	r.max.x = WidthOfScreen(screeninfo);
+	r.max.y = HeightOfScreen(screeninfo);
 
 	xsize = Dx(r)*3/4;
 	ysize = Dy(r)*3/4;
@@ -908,8 +908,8 @@ xinitscreen(void)
 	text = XInternAtom(xkmcon, "TEXT", False);
 	compoundtext = XInternAtom(xkmcon, "COMPOUND_TEXT", False);
 
-	xblack = screen->black_pixel;
-	xwhite = screen->white_pixel;
+	xblack = screeninfo->black_pixel;
+	xwhite = screeninfo->white_pixel;
 	return gscreen;
 }
 

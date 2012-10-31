@@ -1,6 +1,7 @@
 char Enoerror[] = "no error";
 char Emount[] = "inconsistent mount";
 char Eunmount[] = "not mounted";
+char Eismtpt[] = "is a mount point";
 char Eunion[] = "not in union";
 char Emountrpc[] = "mount rpc error";
 char Eshutdown[] = "device shut down";
@@ -48,3 +49,5 @@ char Eshortstat[] = "stat buffer too small";
 char Ebadstat[] = "malformed stat buffer";
 char Enegoff[] = "negative i/o offset";
 char Ecmdargs[] = "wrong #args in control message";
+char Ebadip[] = "bad ip address syntax";
+char Edirseek[] = "seek in directory";
