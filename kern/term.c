@@ -165,7 +165,8 @@ termreplacescreenimage(Memimage *m)
 		_termreplacescreenimage(m);
 		unlock(&term.lk);
 	}
-	termputs(term.lputs, term.ln);
+	if(!mouseopened())
+		termputs(term.lputs, term.ln);
 }
 
 void
