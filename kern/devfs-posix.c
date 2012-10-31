@@ -329,7 +329,8 @@ fsclose(Chan *c)
 static long
 fsread(Chan *c, void *va, long n, vlong offset)
 {
-	int fd, r;
+	int fd;
+	vlong r;
 	Ufsinfo *uif;
 
 /*print("fsread %s\n", c2name(c));*/
@@ -364,7 +365,8 @@ fsread(Chan *c, void *va, long n, vlong offset)
 static long
 fswrite(Chan *c, void *va, long n, vlong offset)
 {
-	int fd, r;
+	int fd;
+	vlong r;
 	Ufsinfo *uif;
 
 	uif = c->aux;
