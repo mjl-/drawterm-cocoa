@@ -329,7 +329,8 @@ fsclose(Chan *c)
 static long
 fsread(Chan *c, void *va, long n, vlong offset)
 {
-	vlong fd, r;
+	int fd;
+	vlong r;
 	Ufsinfo *uif;
 
 /*print("fsread %s\n", c2name(c));*/
@@ -345,7 +346,7 @@ fsread(Chan *c, void *va, long n, vlong offset)
 	fd = uif->fd;
 	if(uif->offset != offset) {
 		r = lseek(fd, offset, 0);
-		if(r < 0)
+		if(r == -1)
 			error(strerror(errno));
 		uif->offset = offset;
 	}
@@ -364,7 +365,8 @@ fsread(Chan *c, void *va, long n, vlong offset)
 static long
 fswrite(Chan *c, void *va, long n, vlong offset)
 {
-	vlong fd, r;
+	int fd;
+	vlong r;
 	Ufsinfo *uif;
 
 	uif = c->aux;
@@ -377,7 +379,7 @@ fswrite(Chan *c, void *va, long n, vlong offset)
 	fd = uif->fd;
 	if(uif->offset != offset) {
 		r = lseek(fd, offset, 0);
-		if(r < 0)
+		if(r == -1)
 			error(strerror(errno));
 		uif->offset = offset;
 	}
