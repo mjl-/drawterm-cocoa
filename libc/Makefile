@@ -74,6 +74,7 @@ UTFOFILES=\
 	dirwstat.$O\
 	fcallfmt.$O\
 	getpid.$O\
+	iounit.$O\
 	nsec.$O\
 	pushssl.$O\
 	pushtls.$O\
