@@ -11,6 +11,9 @@ erealloc(void *v, ulong n)
 	return v;
 }
 
+extern char* estrdup(char *);
+
+/* implemented in exportfs
 char*
 estrdup(char *s)
 {
@@ -19,7 +22,7 @@ estrdup(char *s)
 		sysfatal("out of memory");
 	return s;
 }
-
+*/
 char*
 estrappend(char *s, char *fmt, ...)
 {
