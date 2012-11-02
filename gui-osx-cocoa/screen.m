@@ -47,6 +47,8 @@ int alting;
 Memimage	*gscreen;
 Screeninfo	screeninfo;
 
+NSUInteger Winstyle;
+
 #define WIN	win.ofs[win.isofs]
 
 struct
@@ -107,21 +109,34 @@ void _flushmemscreen(Rectangle r);
 - (void)applicationDidFinishLaunching:(id)arg
 {
 	NSProcessInfo *pinfo;
+	NSUserDefaults *defaults;
+	NSDictionary *dict;
 
 	pinfo = [NSProcessInfo processInfo];
 	[pinfo enableSuddenTermination];
 
-	in.bigarrow = makecursor(&arrow);
+	/* default winstyle */
+	Winstyle = NSTitledWindowMask | NSClosableWindowMask |
+		NSMiniaturizableWindowMask | NSResizableWindowMask;
+
+	defaults = [NSUserDefaults standardUserDefaults];
+	dict = [defaults persistentDomainForName:@"com.bell-labs.plan9.drawterm"];
+	if(dict != nil) {
+		id obj = [dict objectForKey:@"TitledWindow"];
+		if(obj != nil && ![obj boolValue])
+			Winstyle = NSMiniaturizableWindowMask | NSResizableWindowMask;
+	}
 
 	makeicon();
 	makemenu();
+	in.bigarrow = makecursor(&arrow);
 
 	initcpu();
 }
 
 - (void)applicationWillTerminate:(NSNotification *)note
 {
-#warning stuff in shutdown code
+/* any shutdown code should be placed here */
 }
 
 - (void)windowDidBecomeKey:(id)arg
@@ -245,6 +260,22 @@ attachscreen(Rectangle *r, ulong *chan, int *depth, int *width, int *softscreen)
 	[win.content setHidden:NO];
 	[super deminiaturize:arg];
 }
+- (void)zoom:(id)sender
+{
+	NSUInteger old, style;
+
+	[super zoom:sender];
+
+	old = [WIN styleMask];
+
+	if([self isZoomed])
+		style = Winstyle & ~NSResizableWindowMask;
+	else
+		style = Winstyle;
+
+	if(style != old)
+		[WIN setStyleMask:style];
+}
 @end
 
 double
@@ -252,14 +283,6 @@ min(double a, double b)
 {
 	return a<b? a : b;
 }
-
-enum
-{
-	Winstyle = // NSTitledWindowMask
-		  NSClosableWindowMask
-		| NSMiniaturizableWindowMask
-		| NSResizableWindowMask
-};
 
 static void
 makewin(NSSize *s)
@@ -369,7 +392,7 @@ resizeimg()
 	flushmemscreen(gscreen->r);
 	qunlock(&win.lk);
 
-	sendmouse();
+//	sendmouse();
 }
 
 static void
@@ -438,13 +461,11 @@ flushimg(NSRect rect)
 	}
 
 	if(win.needimg){
-		/*
 		if(!NSEqualSizes(rect.size, [win.img size])){
 			LOG(@"flushimg reject %.0f %.0f", rect.size.width, rect.size.height);
 			[win.content unlockFocus];
 			return;
 		}
-		*/
 		win.needimg = 0;
 	}else
 		win.deferflush = 1;
@@ -603,11 +624,18 @@ static void updatecursor(void);
 	else
 		resizeimg();
 
+	/* these biild in a slight delay after the resize */
+	/*
 	if([WIN inLiveResize])
 		waitimg(100);
 	else
 		waitimg(500);
+	waitimg(50);
+	*/
+	[WIN flushWindow];
+	sendmouse();
 }
+
 - (BOOL)isFlipped
 {
 	return YES;	/* to make the content's origin top left */
@@ -861,6 +889,7 @@ acceptresizing(int set)
 static void
 getmousepos(void)
 {
+	#warning look here to remove resize flash
 	NSPoint p, q;
 
 	p = [WIN mouseLocationOutsideOfEventStream];
