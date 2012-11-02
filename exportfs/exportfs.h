@@ -8,7 +8,6 @@
 
 #define Proc	Exproc
 
-
 typedef struct Fsrpc Fsrpc;
 typedef struct Fid Fid;
 typedef struct File File;
@@ -18,11 +17,11 @@ typedef struct Qidtab Qidtab;
 struct Fsrpc
 {
 	int	busy;		/* Work buffer has pending rpc to service */
-	int	pid;		/* Pid of slave process executing the rpc */
+	uintptr	pid;		/* Pid of slave process executing the rpc */
 	int	canint;		/* Interrupt gate */
 	int	flushtag;	/* Tag on which to reply to flush */
-	Fcall work;		/* Plan 9 incoming Fcall */
-	uchar	*buf;	/* Data buffer */
+	Fcall	work;		/* Plan 9 incoming Fcall */
+	uchar	*buf;		/* Data buffer */
 };
 
 struct Fid
@@ -33,6 +32,13 @@ struct Fid
 	int	nr;		/* fid number */
 	int	mid;		/* Mount id */
 	Fid	*next;		/* hash link */
+
+	/* for preaddir -- ARRGH! */
+	Dir	*dir;		/* buffer for reading directories */
+	int	ndir;		/* number of entries in dir */
+	int	cdir;		/* number of consumed entries in dir */
+	int	gdir;		/* glue index */
+	vlong	offset;		/* offset in virtual directory */
 };
 
 struct File
@@ -49,7 +55,7 @@ struct File
 
 struct Proc
 {
-	int	pid;
+	uintptr	pid;
 	int	busy;
 	Proc	*next;
 };
@@ -76,13 +82,7 @@ enum
 };
 
 #define Enomem Exenomem
-#define Ebadfix Exebadfid
 #define Enotdir Exenotdir
-#define Edupfid Exedupfid
-#define Eopen Exeopen
-#define Exmnt Exexmnt
-#define Emip Exemip
-#define Enopsmt Exenopsmt
 
 extern char Ebadfid[];
 extern char Enotdir[];
@@ -103,7 +103,7 @@ Extern Proc	*Proclist;
 Extern char	psmap[Npsmpt];
 Extern Qidtab	*qidtab[Nqidtab];
 Extern ulong	messagesize;
-Extern int		srvfd;
+Extern int	srvfd;
 
 /* File system protocol service procedures */
 void Xattach(Fsrpc*);
@@ -141,8 +141,12 @@ Qidtab* uniqueqid(Dir*);
 void	freeqid(Qidtab*);
 char*	estrdup(char*);
 void*	emallocz(uint);
-int		readmessage(int, char*, int);
+int	readmessage(int, char*, int);
+void	exclusions(void);
+int	excludefile(char*);
+int	preaddir(Fid*, uchar*, int, vlong);
 
+/* these should be picked up in additional kern files, if a 9vx merge takes place */
 #define notify(x)
 #define noted(x)
 #define exits(x)

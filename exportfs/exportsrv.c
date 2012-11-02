@@ -1,8 +1,11 @@
 #include <u.h>
 #include <libc.h>
+#include <auth.h>
 #include <fcall.h>
 #define Extern	extern
 #include "exportfs.h"
+
+extern char *netdir, *local, *remote;
 
 char Ebadfid[] = "Bad fid";
 char Enotdir[] = "Not a directory";
@@ -13,23 +16,10 @@ char Emip[] = "Mount in progress";
 char Enopsmt[] = "Out of pseudo mount points";
 char Enomem[] = "No memory";
 char Eversion[] = "Bad 9P2000 version";
+char Ereadonly[] = "File system read only";
 
-int iounit(int x)
-{
-	return 8*8192+IOHDRSZ;
-}
-
-void*
-emallocz(ulong n)
-{
-	void *v;
-
-	v = mallocz(n, 1);
-	if(v == nil)
-		panic("out of memory");
-	return v;
-}
-
+ulong messagesize;
+int readonly;
 
 void
 Xversion(Fsrpc *t)
@@ -68,7 +58,7 @@ Xflush(Fsrpc *t)
 
 	for(w = Workq; w < e; w++) {
 		if(w->work.tag == t->work.oldtag) {
-			DEBUG(DFD, "\tQ busy %d pid %d can %d\n", w->busy, w->pid, w->canint);
+			DEBUG(DFD, "\tQ busy %d pid %p can %d\n", w->busy, w->pid, w->canint);
 			if(w->busy && w->pid) {
 				w->flushtag = t->work.tag;
 				DEBUG(DFD, "\tset flushtag %d\n", t->work.tag);
@@ -88,8 +78,10 @@ Xflush(Fsrpc *t)
 void
 Xattach(Fsrpc *t)
 {
+	int i, nfd;
 	Fcall rhdr;
 	Fid *f;
+	char buf[128];
 
 	f = newfid(t->work.fid);
 	if(f == 0) {
@@ -305,6 +297,11 @@ Xcreate(Fsrpc *t)
 	Fid *f;
 	File *nf;
 
+	if(readonly) {
+		reply(&t->work, &rhdr, Ereadonly);
+		t->busy = 0;
+		return;
+	}
 	f = getfid(t->work.fid);
 	if(f == 0) {
 		reply(&t->work, &rhdr, Ebadfid);
@@ -347,6 +344,11 @@ Xremove(Fsrpc *t)
 	Fcall rhdr;
 	Fid *f;
 
+	if(readonly) {
+		reply(&t->work, &rhdr, Ereadonly);
+		t->busy = 0;
+		return;
+	}
 	f = getfid(t->work.fid);
 	if(f == 0) {
 		reply(&t->work, &rhdr, Ebadfid);
@@ -384,6 +386,11 @@ Xwstat(Fsrpc *t)
 	char *strings;
 	Dir d;
 
+	if(readonly) {
+		reply(&t->work, &rhdr, Ereadonly);
+		t->busy = 0;
+		return;
+	}
 	f = getfid(t->work.fid);
 	if(f == 0) {
 		reply(&t->work, &rhdr, Ebadfid);
@@ -422,19 +429,59 @@ Xwstat(Fsrpc *t)
 	t->busy = 0;
 }
 
+/*
+ * based on libthread's threadsetname, but drags in less library code.
+ * actually just sets the arguments displayed.
+ */
+void
+procsetname(char *fmt, ...)
+{
+	int fd;
+	char *cmdname;
+	char buf[128];
+	va_list arg;
+
+	va_start(arg, fmt);
+	cmdname = vsmprint(fmt, arg);
+	va_end(arg);
+	if (cmdname == nil)
+		return;
+	snprint(buf, sizeof buf, "#p/%d/args", getpid());
+	if((fd = open(buf, OWRITE)) >= 0){
+		write(fd, cmdname, strlen(cmdname)+1);
+		close(fd);
+	}
+	free(cmdname);
+}
+
 void
 slave(Fsrpc *f)
 {
 	Proc *p;
-	int pid;
+	uintptr pid;
+	Fcall rhdr;
 	static int nproc;
 
+	if(readonly){
+		switch(f->work.type){
+		case Twrite:
+			reply(&f->work, &rhdr, Ereadonly);
+			f->busy = 0;
+			return;
+		case Topen:
+		  	if((f->work.mode&3) == OWRITE || (f->work.mode&OTRUNC)){
+				reply(&f->work, &rhdr, Ereadonly);
+				f->busy = 0;
+				return;
+			}
+		}
+	}
 	for(;;) {
 		for(p = Proclist; p; p = p->next) {
 			if(p->busy == 0) {
 				f->pid = p->pid;
 				p->busy = 1;
-				pid = (uintptr)rendezvous((void*)(uintptr)p->pid, f);
+				pid = (uintptr)rendezvous((void*)p->pid, f);
 				if(pid != p->pid)
 					fatal("rendezvous sync fail");
 				return;
@@ -459,7 +506,7 @@ slave(Fsrpc *f)
 		Proclist = p;
 
 DEBUG(DFD, "parent %d rendez\n", pid);
-		rendezvous((void*)(uintptr)pid, p);
+		rendezvous((void*)pid, p);
 DEBUG(DFD, "parent %d went\n", pid);
 	}
 }
@@ -470,24 +517,23 @@ blockingslave(void *x)
 	Fsrpc *p;
 	Fcall rhdr;
 	Proc *m;
-	int pid;
+	uintptr pid;
 
 	USED(x);
-
 	notify(flushaction);
 
 	pid = getpid();
 
 DEBUG(DFD, "blockingslave %d rendez\n", pid);
-	m = (Proc*)rendezvous((void*)(uintptr)pid, 0);
+	m = (Proc*)rendezvous((void*)pid, 0);
 DEBUG(DFD, "blockingslave %d rendez got %p\n", pid, m);
 	
 	for(;;) {
-		p = rendezvous((void*)(uintptr)pid, (void*)(uintptr)pid);
-		if((uintptr)p == ~(uintptr)0)			/* Interrupted */
+		p = rendezvous((void*)pid, (void*)pid);
+		if(p == (void*)~0)			/* Interrupted */
 			continue;
 
-		DEBUG(DFD, "\tslave: %d %F b %d p %d\n", pid, &p->work, p->busy, p->pid);
+		DEBUG(DFD, "\tslave: %p %F b %d p %p\n", pid, &p->work, p->busy, p->pid);
 		if(p->flushtag != NOTAG)
 			goto flushme;
 
@@ -573,6 +619,7 @@ slaveopen(Fsrpc *p)
 
 	DEBUG(DFD, "\topen: fd %d\n", f->fid);
 	f->mode = work->mode;
+	f->offset = 0;
 	rhdr.iounit = getiounit(f->fid);
 	rhdr.qid = f->f->qid;
 	reply(work, &rhdr, 0);

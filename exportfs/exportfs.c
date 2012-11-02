@@ -5,7 +5,6 @@
 #include <libc.h>
 #include <fcall.h>
 #include <libsec.h>
-#include "drawterm.h"
 #define Extern
 #include "exportfs.h"
 
@@ -13,7 +12,30 @@
 #define QIDPATH	((((vlong)1)<<48)-1)
 vlong newqid = 0;
 
-void (*fcalls[256])(Fsrpc*);
+enum {
+	Encnone,
+	Encssl,
+	Enctls,
+};
+
+#pragma clang diagnostic ignored "-Wgnu-designator"
+
+void (*fcalls[])(Fsrpc*) =
+{
+	[Tversion]	Xversion,
+	[Tauth]	Xauth,
+	[Tflush]	Xflush,
+	[Tattach]	Xattach,
+	[Twalk]		Xwalk,
+	[Topen]		slave,
+	[Tcreate]	Xcreate,
+	[Tclunk]	Xclunk,
+	[Tread]		slave,
+	[Twrite]	slave,
+	[Tremove]	Xremove,
+	[Tstat]		Xstat,
+	[Twstat]	Xwstat,
+};
 
 /* accounting and debugging counters */
 int	filecnt;
@@ -21,7 +43,9 @@ int	freecnt;
 int	qidcnt;
 int	qfreecnt;
 int	ncollision;
-int	netfd;
+
+int	netfd;				/* initially stdin */
+int	srvfd = -1;
 
 int
 exportfs(int fd, int msgsz)
@@ -106,7 +130,7 @@ void
 reply(Fcall *r, Fcall *t, char *err)
 {
 	uchar *data;
-	int m, n;
+	int n;
 
 	t->tag = r->tag;
 	t->fid = r->fid;
@@ -124,8 +148,8 @@ if(0) iprint("-> %F\n", t);
 	if(data == nil)
 		fatal(Enomem);
 	n = convS2M(t, data, messagesize);
-	if((m=write(netfd, data, n))!=n){
-		iprint("wrote %d got %d (%r)\n", n, m);
+	if(write(netfd, data, n)!=n){
+		iprint("exportfs short write: %r\n");
 		fatal("write");
 	}
 	free(data);
@@ -160,6 +184,10 @@ freefid(int nr)
 			if(f->f) {
 				freefile(f->f);
 				f->f = nil;
+			}
+			if(f->dir){
+				free(f->dir);
+				f->dir = nil;
 			}
 			*l = f->next;
 			f->next = fidfree;
@@ -490,6 +518,7 @@ fatal(char *s, ...)
 {
 	char buf[ERRMAX];
 	va_list arg;
+	Proc *m;
 
 	if (s) {
 		va_start(arg, s);
@@ -498,13 +527,34 @@ fatal(char *s, ...)
 	}
 
 	/* Clear away the slave children */
-//	for(m = Proclist; m; m = m->next)
-//		postnote(PNPROC, m->pid, "kill");
+	for(m = Proclist; m; m = m->next)
+		postnote(PNPROC, m->pid, "kill");
 
 	DEBUG(DFD, "%s\n", buf);
 	if (s) 
-		sysfatal(buf);
+		sysfatal("%s", buf);	/* caution: buf could contain '%' */
 	else
-		sysfatal("");
+		exits(nil);
 }
 
+void*
+emallocz(uint n)
+{
+	void *p;
+
+	p = mallocz(n, 1);
+	if(p == nil)
+		fatal(Enomem);
+	return p;
+}
+
+char*
+estrdup(char *s)
+{
+	char *t;
+
+	t = strdup(s);
+	if(t == nil)
+		fatal(Enomem);
+	return t;
+}
