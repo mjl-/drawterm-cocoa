@@ -1,5 +1,22 @@
+DETAILS
+-------
+This port of drawterm focuses on adding Cocoa drawing support to the Mac OS X
+version as found in gui-osx-cocoa.  Additional updates have been added to bring
+drawterm in line with recent changes in the Plan 9 source, specifically:
+
+- libc restructured and updated
+
+- libdraw, libmemdraw, and libmemlayer sources in line with recent Plan 9
+
+- modified kern files bringing in updates from recent Plan 9 releases
+
+- devdraw now allows window resize
+
+
 INSTALLATION
 --------------
+To build on Mac OS X 10.8, run make 'CONF=osx-cocoa'.
+
 To build on Unix, run CONF=unix make.
 
 To build on Solaris using Sun cc, run CONF=sun make.
@@ -19,26 +36,23 @@ I cross-compile using mingw32 on Linux.
 
 BINARIES
 ---------
-See http://swtch.com/drawterm/
+See https://bitbucket.org/jas/drawterm-cocoa/downloads
 
 
 SOURCE
 ------
-Use Mercurial: hg clone http://code.swtch.com/drawterm
-On the web at http://code.swtch.com/drawterm
-Tar file at http://swtch.com/drawterm/
+Use Mercurial: hg clone https://bitbucket.org/jas/drawterm-cocoa
+On the web at https://bitbucket.org/jas/drawterm-cocoa/downloads
 In the Plan 9 distribution: /sys/src/cmd/unix/drawterm/ (sometimes out of date)
 
 
 HELP
 ----
-Issue tracker: http://code.swtch.com/drawterm/issues
+Issue tracker: https://bitbucket.org/jas/drawterm-cocoa/issues
 
 
 TO DO:
 ------
-
-- Should import latest /dev/draw to allow resize of window
 
 - Should copy 9term code and make console window a real
 	9term window instead.
