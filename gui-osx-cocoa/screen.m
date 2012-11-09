@@ -320,7 +320,7 @@ makewin(NSSize *s)
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
 	[w setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
 #endif
-	[w setContentMinSize:NSMakeSize(128,128)];
+	[w setContentMinSize:NSMakeSize(320,200)];
 
 	win.ofs[0] = w;
 	win.ofs[1] = [[appwin alloc] initWithContentRect:sr
@@ -1188,7 +1188,7 @@ makemenu(void)
 
 	m = [[NSMenu alloc] initWithTitle:@"View"];
 	item = [m addItemWithTitle:@"Enter Full Screen"
-						action:@selector(toggleFullScreen:)
+						action:@selector(calltogglefs:)
 				 keyEquivalent:@"f"];
 	[item setKeyEquivalentModifierMask:(NSCommandKeyMask | NSControlKeyMask)];
 	[i1 setSubmenu:m];
