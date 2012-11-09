@@ -1,16 +1,34 @@
 DETAILS
 -------
-This port of drawterm focuses on adding Cocoa drawing support to the Mac OS X
-version as found in gui-osx-cocoa.  Additional updates have been added to bring
-drawterm in line with recent changes in the Plan 9 source, specifically:
+This port of drawterm focuses on removing the Carbon drawing routines and adding
+Cocoa runtime and drawing support to the Mac OS X version.  The specific Cocoa
+source changes are located in gui-osx-cocoa merging in code from Plan 9 Port's
+devdraw and updates found in 9vx.  Additional source updates bring drawterm in
+line with recent changes in the Plan 9 source, specifically:
 
 - libc restructured and updated
 
-- libdraw, libmemdraw, and libmemlayer sources in line with recent Plan 9
+- libdraw, libmemdraw, and libmemlayer sources updated
 
-- modified kern files bringing in updates from recent Plan 9 releases
+- modified kern files bringing in Plan 9 sys/src/9/port updates
+
+- UTF and Rune updates from Coraid
 
 - devdraw now allows window resize
+
+The new Mac OS X 10.8 full-screen mode is not always the best mechanism for
+interacting with the display.  To accommodate this, the gui-osx-cocoa port has
+an experimental option that eliminates the title bar under all conditions:
+
+	% defaults write com.bell-labs.plan9.drawterm TitledWindow 0
+
+When the titled window is not used, moving the window can be accomplished by
+clicking on the border and dragging the cursor perpendicular to the displayed
+resize cursor direction.  Use the window zoom menu item to resize the window to
+the maximum allowed by the display without wasting pixels on a title bar.
+
+Setting the value to 1 or deleting the default will return to displaying the
+title bar during normal operation.  
 
 
 INSTALLATION
