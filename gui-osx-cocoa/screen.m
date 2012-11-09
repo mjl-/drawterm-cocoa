@@ -1314,14 +1314,14 @@ makecursor(Cursor *c)
 		samplesPerPixel:2
 		hasAlpha:YES
 		isPlanar:YES
-		colorSpaceName:NSDeviceBlackColorSpace
+		colorSpaceName:NSDeviceWhiteColorSpace
 		bytesPerRow:2
 		bitsPerPixel:1];
 
 	[r getBitmapDataPlanes:plane];
 
 	for(b=0; b<2*16; b++){
-		plane[0][b] = c->set[b];
+		plane[0][b] = c->set[b] ^ 0xFF;
 		plane[1][b] = c->set[b] | c->clr[b];
 	}
 	p = NSMakePoint(-c->offset.x, -c->offset.y);
