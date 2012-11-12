@@ -949,6 +949,9 @@ getmouse(NSEvent *e)
 #else
 		d = [e deltaY];
 #endif
+		if([e hasPreciseScrollingDeltas] == NO)
+			d *= 10.0;
+		in.mpos.y += d;
 		if(d>0)
 			in.mscroll = 8;
 		else
