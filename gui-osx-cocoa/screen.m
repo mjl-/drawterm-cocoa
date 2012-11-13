@@ -388,11 +388,10 @@ resizeimg()
 	termreplacescreenimage(gscreen);
 	drawreplacescreenimage(gscreen);
 
-	[win.content setHidden:NO];			/* reenable the flush */
-	flushmemscreen(gscreen->r);
-	qunlock(&win.lk);
+	sendmouse();
 
-//	sendmouse();
+	[win.content setHidden:NO];			/* reenable the flush */
+	qunlock(&win.lk);
 }
 
 static void
@@ -421,8 +420,6 @@ _flushmemscreen(Rectangle r)
 {
 	if(![win.content canDraw])
 		return;
-
-	LOG(@"_flushmemscreen");
 
 	NSRect rect;
 	rect = NSMakeRect(r.min.x, r.min.y, Dx(r), Dy(r));
@@ -625,15 +622,12 @@ static void updatecursor(void);
 		resizeimg();
 
 	/* these biild in a slight delay after the resize */
-	/*
 	if([WIN inLiveResize])
-		waitimg(100);
+		waitimg(20);
 	else
-		waitimg(500);
-	waitimg(50);
-	*/
+		waitimg(100);
+
 	[WIN flushWindow];
-	sendmouse();
 }
 
 - (BOOL)isFlipped
@@ -889,7 +883,6 @@ acceptresizing(int set)
 static void
 getmousepos(void)
 {
-	#warning look here to remove resize flash
 	NSPoint p, q;
 
 	p = [WIN mouseLocationOutsideOfEventStream];
@@ -901,7 +894,7 @@ getmousepos(void)
 
 	if(win.isnfs || win.isofs)
 		hidebars(1);
-	else if(MAC_OS_X_VERSION_MIN_REQUIRED >= 1070 && [WIN inLiveResize]==0){
+	else if(MAC_OS_X_VERSION_MIN_REQUIRED >= 1070 && [WIN inLiveResize]==NO){
 		if(p.x<12 && p.y<12 && p.x>2 && p.y>2)
 			acceptresizing(0);
 		else
