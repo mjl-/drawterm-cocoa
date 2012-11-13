@@ -621,7 +621,7 @@ static void updatecursor(void);
 	else
 		resizeimg();
 
-	/* these biild in a slight delay after the resize */
+	/* build in a slight delay after the resize to catch up with drawing */
 	if([WIN inLiveResize])
 		waitimg(20);
 	else
