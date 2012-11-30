@@ -33,7 +33,6 @@ extern int		kbdputc(Queue*, int);
 extern ulong	msec(void);
 
 extern Cursorinfo cursor;
-extern int mousequeue;
 
 #define LOG	if(0)NSLog
 
