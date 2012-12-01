@@ -27,7 +27,7 @@ AUDIO=none
 #WARNINGS=-Wshorten-64-to-32
 
 CC=clang
-CFLAGS=$(WARNINGS) $(ARCHFLAGS) $(SDK) -fwritable-strings -g -O0 -I. -I$(ROOT) -I$(ROOT)/include -I$(ROOT)/kern -c -D_THREAD_SAFE -DPTHREAD
+CFLAGS=$(WARNINGS) $(ARCHFLAGS) $(SDK) -fwritable-strings -g -O0 -I. -I$(ROOT) -I$(ROOT)/include -I$(ROOT)/kern -c -D_THREAD_SAFE -DPTHREAD -DCOCOA
 
 LDADD=-g
 LDFLAGS=$(ARCHFLAGS) $(SDK) -framework Cocoa $(PTHREAD)

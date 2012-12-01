@@ -154,7 +154,19 @@ _termreplacescreenimage(Memimage *m)
 void
 termreplacescreenimage(Memimage *m)
 {
-	if(up){
+	Proc *p;
+	int cpupid;
+
+	cpupid = 1;
+	p = up;
+	
+#if defined(COCOA)
+	if(p && p->pid == 1){
+		cpupid = 0;
+	}
+#endif
+
+	if(p && cpupid){
 		drawqlock();
 		lock(&term.lk);
 		_termreplacescreenimage(m);
