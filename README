@@ -30,6 +30,15 @@ the maximum allowed by the display without wasting pixels on a title bar.
 Setting the value to 1 or deleting the default will return to displaying the
 title bar during normal operation.  
 
+An additional default has been added to enable gesture support for multi-touch
+trackpads.  The initial value can be set with:
+
+	% defaults write com.bell-labs.plan9.drawterm MagnificationToggle 1
+
+to allow a pinch or expand magnification gesture to be used to toggle between
+fullscreen and regular windowed mode.  The default is to not toggle when the
+gesture is used.
+
 
 INSTALLATION
 --------------

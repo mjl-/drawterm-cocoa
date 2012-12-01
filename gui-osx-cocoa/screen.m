@@ -74,7 +74,6 @@ struct
 } in;
 
 void initcpu(void);
-
 void	topwin(void);
 
 static void hidebars(int);
@@ -95,6 +94,16 @@ static NSCursor* makecursor(Cursor*);
 
 void _flushmemscreen(Rectangle r);
 
+NSDictionary*
+dtdefaults()
+{
+	NSUserDefaults *defaults;
+	NSDictionary *dict;
+	defaults = [NSUserDefaults standardUserDefaults];
+	dict = [defaults persistentDomainForName:@"com.bell-labs.plan9.drawterm"];
+	return dict;
+}
+
 @implementation appdelegate
 
 @synthesize arrowCursor = _arrowCursor;
@@ -108,7 +117,6 @@ void _flushmemscreen(Rectangle r);
 - (void)applicationDidFinishLaunching:(id)arg
 {
 	NSProcessInfo *pinfo;
-	NSUserDefaults *defaults;
 	NSDictionary *dict;
 
 	pinfo = [NSProcessInfo processInfo];
@@ -118,8 +126,7 @@ void _flushmemscreen(Rectangle r);
 	Winstyle = NSTitledWindowMask | NSClosableWindowMask |
 		NSMiniaturizableWindowMask | NSResizableWindowMask;
 
-	defaults = [NSUserDefaults standardUserDefaults];
-	dict = [defaults persistentDomainForName:@"com.bell-labs.plan9.drawterm"];
+	dict = dtdefaults();
 	if(dict != nil) {
 		id obj = [dict objectForKey:@"TitledWindow"];
 		if(obj != nil && ![obj boolValue])
@@ -968,10 +975,17 @@ getmouse(NSEvent *e)
 static void
 getgesture(NSEvent *e)
 {
+	NSDictionary *dict;
+	id obj;
+
+	dict = dtdefaults();
+
 	switch([e type]){
 	case NSEventTypeMagnify:
-		if(fabs([e magnification]) > Minpinch)
-			togglefs();
+		if(dict != nil && (obj = [dict objectForKey:@"MagnificationToggle"])){
+			if([obj boolValue] && (fabs([e magnification]) > Minpinch))
+				togglefs();
+		}
 		break;
 	}
 }

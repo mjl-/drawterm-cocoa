@@ -12,7 +12,6 @@
 /* symbols from fns.h that do not need the rest brought in */
 extern void		chandevinit(void);
 extern void		chandevreset(void);
-extern int errfmt(Fmt*);
 extern void	osinit(void);
 extern void		printinit(void);
 extern void		procinit0(void);
@@ -27,8 +26,6 @@ static char **threadargv;
 
 int main(int argc, char *argv[])
 {
-	Proc *p;
-
 	/* store these to pass to cpumain */
 	threadargc = argc;
 	threadargv = argv;
