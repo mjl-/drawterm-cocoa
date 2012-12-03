@@ -1006,6 +1006,20 @@ deletescreenimage(void)
 }
 
 void
+deletescreenimagenl(void)
+{
+	if(screenimage){
+		/* will be freed via screendimage; disable */
+		screenimage->clipr = ZR;
+		screenimage = nil;
+	}
+	if(screendimage){
+		drawfreedimage(screendimage);
+		screendimage = nil;
+	}
+}
+
+void
 resetscreenimage(void)
 {
 	dlock();
@@ -2251,7 +2265,6 @@ drawreplacescreenimage(Memimage *m)
 	if(di == nil){
 		print("no memory to replace screen image\n");
 		freememimage(m);
-		dunlock();
 		return;
 	}
 	
@@ -2264,8 +2277,7 @@ drawreplacescreenimage(Memimage *m)
 		}
 	}
 
-	deletescreenimage();
-	dlock();
+	deletescreenimagenl();
 	screendimage = di;
 	screenimage = screendimage->image;
 
@@ -2286,6 +2298,5 @@ drawreplacescreenimage(Memimage *m)
 		}
 	}
 
-	dunlock();
 	mouseresize();
 }

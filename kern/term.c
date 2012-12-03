@@ -166,7 +166,7 @@ termreplacescreenimage(Memimage *m)
 	}
 #endif
 
-	if(p && cpupid){
+	if(p && cpupid == 1){
 		drawqlock();
 		lock(&term.lk);
 		_termreplacescreenimage(m);
