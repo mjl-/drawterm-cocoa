@@ -1,5 +1,6 @@
 #include "u.h"
 #include "lib.h"
+#include "mem.h"
 #include "dat.h"
 #include "fns.h"
 #include "error.h"
@@ -410,7 +411,7 @@ xdraw(Memdrawparam *par)
 	 * maybe we should give up on all this?
 	 */
 
-	if((dxm = dst->X) == nil)
+//	if((dxm = dst->X) == nil)
 		return 0;
 
 	/*

@@ -1,3 +1,5 @@
+#define nelem(x)	(sizeof(x)/sizeof((x)[0]))
+
 /* avoid name conflicts */
 #define accept	pm_accept
 #define listen  pm_listen

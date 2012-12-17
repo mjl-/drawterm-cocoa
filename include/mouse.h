@@ -1,4 +1,4 @@
-#pragma src "/sys/src/libdraw"
+//#pragma src "/sys/src/libdraw"
 
 typedef struct	Menu Menu;
 typedef struct 	Mousectl Mousectl;

@@ -101,7 +101,6 @@ static u32int pixelbits(Memimage*, Point);
 void
 memimagedraw(Memimage *dst, Rectangle r, Memimage *src, Point p0, Memimage *mask, Point p1, int op)
 {
-	static int n = 0;
 	Memdrawparam par;
 
 	if(mask == nil)
@@ -450,9 +449,9 @@ struct Param {
 	int	convdx;
 };
 
-static uchar *drawbuf;
-static int	ndrawbuf;
-static int	mdrawbuf;
+//static uchar *drawbuf;
+//static int	ndrawbuf;
+//static int	mdrawbuf;
 static Readfn	greymaskread, replread, readptr;
 static Writefn	nullwrite;
 static Calcfn	alphacalc0, alphacalc14, alphacalc2810, alphacalc3679, alphacalc5, alphacalc11, alphacalcS;
@@ -464,7 +463,7 @@ static Writefn*	writefn(Memimage*);
 
 static Calcfn*	boolcopyfn(Memimage*, Memimage*);
 static Readfn*	convfn(Memimage*, Param*, Memimage*, Param*, int*);
-static Readfn*	ptrfn(Memimage*);
+//static Readfn*	ptrfn(Memimage*);
 
 static Calcfn *alphacalc[Ncomp] = 
 {
@@ -1137,7 +1136,7 @@ alphacalcS(Buffer bdst, Buffer bsrc, Buffer bmask, int dx, int grey, int op)
 	Buffer obdst;
 	int fd;
 	int i, ma;
-	u32int s, t;
+	u32int t;
 
 	USED(op);
 	obdst = bdst;
@@ -1209,7 +1208,7 @@ boolcalc236789(Buffer bdst, Buffer bsrc, Buffer bmask, int dx, int grey, int op)
 	Buffer obdst;
 	int fs, fd;
 	int i, ma, da, zero;
-	u32int s, t;
+	u32int t;
 
 	obdst = bdst;
 	zero = !(op&1);
@@ -1991,6 +1990,7 @@ boolcopyfn(Memimage *img, Memimage *mask)
 /*
  * Optimized draw for filling and scrolling; uses memset and memmove.
  */
+#ifdef notdef
 static void
 memsetb(void *vp, uchar val, int n)
 {
@@ -2001,6 +2001,7 @@ memsetb(void *vp, uchar val, int n)
 	while(p<ep)
 		*p++ = val;
 }
+#endif
 
 static void
 memsets(void *vp, ushort val, int n)

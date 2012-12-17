@@ -15,7 +15,7 @@ vseprint(char *buf, char *e, char *fmt, va_list args)
 	f.flush = nil;
 	f.farg = nil;
 	f.nfmt = 0;
-	f.args = args;
+	va_copy(f.args, args);
 	dofmt(&f, fmt);
 	*(char*)f.to = '\0';
 	return f.to;

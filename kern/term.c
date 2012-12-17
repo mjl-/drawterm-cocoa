@@ -35,7 +35,7 @@ static struct {
 } term;
 
 static void termputs(char*, int);
-static void showkmesg(void);
+//static void showkmesg(void);
 static void kickscreen(void);
 
 void

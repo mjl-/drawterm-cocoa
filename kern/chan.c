@@ -38,6 +38,7 @@ struct Elemlist
 
 #define SEP(c) ((c) == 0 || (c) == '/')
 
+#ifdef notdef
 static void
 dumpmount(void)		/* DEBUGGING */
 {
@@ -74,6 +75,7 @@ dumpmount(void)		/* DEBUGGING */
 	poperror();
 	runlock(&pg->ns);
 }
+#endif
 
 char*
 chanpath(Chan *c)

@@ -8,7 +8,7 @@ typedef struct Segdesc	Segdesc;
 typedef struct Ureg		Ureg;
 typedef struct Vctl	Vctl;
 
-#pragma incomplete Ureg
+//#pragma incomplete Ureg
 
 #define MAXSYSARG	5	/* for mount(fd, afd, mpt, flag, arg) */
 #define STAGESIZE 2048
