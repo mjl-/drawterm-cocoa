@@ -950,6 +950,10 @@ getmouse(NSEvent *e)
 #endif
 		if([e hasPreciseScrollingDeltas] == NO)
 			d *= 10.0;
+		if(d > 20.0)
+			d = 20.0;
+		if(d < -20.0)
+			d = -20.0;
 		in.mpos.y += d;
 		if(d>0)
 			in.mscroll = 8;
