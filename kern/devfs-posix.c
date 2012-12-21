@@ -254,6 +254,12 @@ fsopen(Chan *c, int mode)
 	return c;
 }
 
+/*
+   Not exactly sure why fscreate() should override the umask.
+   Cutting the chmod() and chown() out make drawterm behave better
+   when touching and creating local files (from /mnt/term/).
+ */
+
 static void
 fscreate(Chan *c, char *name, int mode, ulong perm)
 {
@@ -276,10 +282,12 @@ fscreate(Chan *c, char *name, int mode, ulong perm)
 			error(strerror(errno));
 
 		fd = open(path, 0);
+#if 0
 		if(fd >= 0) {
 			chmod(path, perm & 0777);
 			chown(path, uif->uid, uif->uid);
 		}
+#endif
 		close(fd);
 
 		uif->dir = opendir(path);
@@ -293,8 +301,10 @@ fscreate(Chan *c, char *name, int mode, ulong perm)
 				close(fd);
 				fd = open(path, m);
 			}
+#if 0
 			chmod(path, perm & 0777);
 			chown(path, uif->uid, uif->gid);
+#endif
 		}
 		if(fd < 0)
 			error(strerror(errno));
