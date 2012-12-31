@@ -180,7 +180,7 @@ fsstat(Chan *c, uchar *buf, int n)
 	if(n < BIT16SZ)
 		error(Eshortstat);
 
-	fspath(c, 0, path);
+	fspath(c, nil, path);
 	if(stat(path, &stbuf) < 0)
 		error(strerror(errno));
 
@@ -233,7 +233,7 @@ fsopen(Chan *c, int mode)
 
 	uif = c->aux;
 
-	fspath(c, 0, path);
+	fspath(c, nil, path);
 	if(isdir) {
 		uif->dir = opendir(path);
 		if(uif->dir == 0)
@@ -253,6 +253,12 @@ fsopen(Chan *c, int mode)
 	c->flag |= COPEN;
 	return c;
 }
+
+/*
+   Not exactly sure why fscreate() should override the umask.
+   Cutting the chmod() and chown() out make drawterm behave better
+   when touching and creating local files (from /mnt/term/).
+ */
 
 static void
 fscreate(Chan *c, char *name, int mode, ulong perm)
@@ -276,10 +282,12 @@ fscreate(Chan *c, char *name, int mode, ulong perm)
 			error(strerror(errno));
 
 		fd = open(path, 0);
+#if 0
 		if(fd >= 0) {
 			chmod(path, perm & 0777);
 			chown(path, uif->uid, uif->uid);
 		}
+#endif
 		close(fd);
 
 		uif->dir = opendir(path);
@@ -293,8 +301,10 @@ fscreate(Chan *c, char *name, int mode, ulong perm)
 				close(fd);
 				fd = open(path, m);
 			}
+#if 0
 			chmod(path, perm & 0777);
 			chown(path, uif->uid, uif->gid);
+#endif
 		}
 		if(fd < 0)
 			error(strerror(errno));
@@ -401,7 +411,7 @@ fsremove(Chan *c)
 	int n;
 	char path[MAXPATH];
 
-	fspath(c, 0, path);
+	fspath(c, nil, path);
 	if(c->qid.type & QTDIR)
 		n = rmdir(path);
 	else
@@ -422,13 +432,13 @@ fswstat(Chan *c, uchar *buf, int n)
 	if(convM2D(buf, n, &d, strs) != n)
 		error(Ebadstat);
 	
-	fspath(c, 0, old);
+	fspath(c, nil, old);
 	if(stat(old, &stbuf) < 0)
 		error(strerror(errno));
 
 	uif = c->aux;
 
-	fspath(c, 0, old);
+	fspath(c, nil, old);
 	if(~d.mode != 0 && (int)(d.mode&0777) != (int)(stbuf.st_mode&0777)) {
 		if(chmod(old, d.mode&0777) < 0)
 			error(strerror(errno));
@@ -437,7 +447,7 @@ fswstat(Chan *c, uchar *buf, int n)
 	}
 
 	if(d.name[0] && strcmp(d.name, lastelem(c)) != 0) {
-		fspath(c, 0, old);
+		fspath(c, nil, old);
 		strcpy(new, old);
 		p = strrchr(new, '/');
 		strcpy(p+1, d.name);
@@ -494,13 +504,11 @@ fsqid(char *p, struct stat *st)
 static void
 fspath(Chan *c, char *ext, char *path)
 {
-	strcpy(path, base);
-	strcat(path, "/");
-	strcat(path, uc2name(c));
-	if(ext){
-		strcat(path, "/");
-		strcat(path, ext);
-	}
+	/* assume len of MAXPATH */
+	if(ext == nil)
+		snprint(path, MAXPATH, "%s/%s", base, uc2name(c));
+	else
+		snprint(path, MAXPATH, "%s/%s/%s", base, uc2name(c), ext);
 	cleanname(path);
 }
 
@@ -561,7 +569,7 @@ fsdirread(Chan *c, uchar *va, int count, ulong offset)
 		rewinddir(uif->dir);
 	}
 
-	fspath(c, 0, dirpath);
+	fspath(c, nil, dirpath);
 
 	while(i+BIT16SZ < count) {
 		if(!p9readdir(de, uif))
@@ -571,7 +579,7 @@ fsdirread(Chan *c, uchar *va, int count, ulong offset)
 			continue;
 
 		d.name = de;
-		sprint(path, "%s/%s", dirpath, de);
+		snprint(path, sizeof path, "%s/%s", dirpath, de);
 		memset(&stbuf, 0, sizeof stbuf);
 
 		if(stat(path, &stbuf) < 0) {
