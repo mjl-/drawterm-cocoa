@@ -23,7 +23,7 @@ memimagemove(void *from, void *to)
 }
 
 Memimage*
-allocmemimaged(Rectangle r, u32int chan, Memdata *md)
+allocmemimaged(Rectangle r, u32int chan, Memdata *md, void *X)
 {
 	int d;
 	u32int l;
@@ -44,6 +44,7 @@ allocmemimaged(Rectangle r, u32int chan, Memdata *md)
 	if(i == nil)
 		return nil;
 
+	i->X = X;
 	i->data = md;
 	i->zero = sizeof(u32int)*l*r.min.y;
 	
@@ -103,7 +104,7 @@ allocmemimage(Rectangle r, u32int chan)
 	md->bdata = p;
 	md->allocd = 1;
 
-	i = allocmemimaged(r, chan, md);
+	i = allocmemimaged(r, chan, md, nil);
 	if(i == nil){
 		poolfree(imagmem, md->base);
 		free(md);

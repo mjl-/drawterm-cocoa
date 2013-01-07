@@ -941,19 +941,20 @@ makescreenimage(void)
 	Memdata *md;
 	Memimage *i;
 	Rectangle r;
+	void *X;
 
 	md = malloc(sizeof *md);
 	if(md == nil)
 		return nil;
 	md->allocd = 1;
 	md->base = nil;
-	md->bdata = attachscreen(&r, &chan, &depth, &width, &sdraw.softscreen);
-	if(md->bdata == nil){
+	md->bdata = attachscreen(&r, &chan, &depth, &width, &sdraw.softscreen, &X);
+	if(md->bdata == nil && X == nil){
 		free(md);
 		return nil;
 	}
 	md->ref = 1;
-	i = allocmemimaged(r, chan, md);
+	i = allocmemimaged(r, chan, md, X);
 	if(i == nil){
 		free(md);
 		return nil;

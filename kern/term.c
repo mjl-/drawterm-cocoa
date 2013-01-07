@@ -370,6 +370,6 @@ kickscreen(void)
 	int width;
 	int softscreen;
 	
-	attachscreen(&r, &chan, &depth, &width, &softscreen);
+	attachscreen(&r, &chan, &depth, &width, &softscreen, nil);
 	termreplacescreenimage(gscreen);
 }

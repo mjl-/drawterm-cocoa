@@ -54,6 +54,8 @@ struct Memimage
 	int		shift[NChan];
 	int		mask[NChan];
 	int		nbits[NChan];
+
+	void		*X;	/* used for gui-x11 Xmem struct */
 };
 
 struct Memcmap
@@ -117,7 +119,7 @@ struct	Memdrawparam
  */
 
 extern Memimage*	allocmemimage(Rectangle, u32int);
-extern Memimage*	allocmemimaged(Rectangle, u32int, Memdata*);
+extern Memimage*	allocmemimaged(Rectangle, u32int, Memdata*, void*);
 extern Memimage*	readmemimage(int);
 extern Memimage*	creadmemimage(int);
 extern int	writememimage(int, Memimage*);
