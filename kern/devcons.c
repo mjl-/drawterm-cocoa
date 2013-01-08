@@ -354,7 +354,7 @@ echo(char *buf, int n)
 	//	case 'r':
 	//		exit(0);
 	//		return;
-	//	}
+		}
 	}
 
 	qproduce(kbdq, buf, n);
