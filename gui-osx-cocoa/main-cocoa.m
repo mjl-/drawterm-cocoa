@@ -165,5 +165,5 @@ findkey(char **puser, char *dom)
 char*
 getconf(char *name)
 {
-	return nil;
+	return getenv(name);	/* leak */
 }

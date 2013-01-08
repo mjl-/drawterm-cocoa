@@ -24,8 +24,8 @@ LIBS1=\
 	libmp/libmp.a\
 	libmemdraw/libmemdraw.a\
 	libmemlayer/libmemlayer.a\
-	libdraw/libdraw.a\
 	gui-$(GUI)/libgui.a\
+	libdraw/libdraw.a\
 	libc/libc.a\
 #	libip/libip.a\
 

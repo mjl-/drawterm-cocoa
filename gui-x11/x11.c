@@ -14,6 +14,7 @@ typedef struct Channel	Channel;		/* used in keyboard.h */
 
 #include <cursor.h>
 #include "kern/screen.h"
+#include "bigarrow.h"
 
 #define argv0 "drawterm"
 
@@ -606,6 +607,24 @@ mouseset(Point xy)
 	XWarpPointer(xdisplay, None, xdrawable, 0, 0, 0, 0, xy.x, xy.y);
 	XFlush(xdisplay);
 	drawqunlock();
+}
+
+int
+cursoron(int dolock)
+{
+	Point p;
+	if(dolock)
+		lock(&cursor.lk);
+	p = mousexy();
+	mouseset(p);
+	if(dolock)
+		unlock(&cursor.lk);
+	return 0;
+}
+
+void
+cursoroff(int d)
+{
 }
 
 static XCursor xcursor;
@@ -1661,11 +1680,12 @@ clipwrite(char *buf)
 }
 
 void
-cursoroff(int d)
+mousectl(Cmdbuf *cb)
 {
 }
 
-void
-mousectl(Cmdbuf *cb)
+char*
+getconf(char *name)
 {
+	return getenv(name);	/* leak */
 }
