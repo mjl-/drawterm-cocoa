@@ -67,7 +67,7 @@ allocmemimaged(Rectangle r, u32int chan, Memdata *md, void *X)
 }
 
 Memimage*
-allocmemimage(Rectangle r, u32int chan)
+_allocmemimage(Rectangle r, u32int chan)
 {
 	int d;
 	uchar *p;

@@ -364,7 +364,6 @@ pixelbits(Memimage *m, Point p)
 	return _pixelbits(m, p);
 }
 
-#ifdef XGOO
 void
 memimageinit(void)
 {
@@ -379,7 +378,6 @@ memimageinit(void)
 	xfillcolor(memblack, memblack->r, 0);
 	xfillcolor(memwhite, memwhite->r, 1);
 }
-#endif
 
 void
 memimagedraw(Memimage *dst, Rectangle r, Memimage *src, Point sp, Memimage *mask, Point mp, int op)

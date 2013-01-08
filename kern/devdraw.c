@@ -450,6 +450,13 @@ drawflush(void)
 	flushrect = Rect(10000, 10000, -10000, -10000);
 }
 
+void
+drawflushr(Rectangle r)
+{
+	addflush(r);
+	drawflush();
+}
+
 static
 int
 drawcmp(char *a, char *b, int n)
