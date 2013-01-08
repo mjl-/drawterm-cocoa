@@ -115,7 +115,7 @@ allocmemimage(Rectangle r, u32int chan)
 }
 
 void
-freememimage(Memimage *i)
+_freememimage(Memimage *i)
 {
 	if(i == nil)
 		return;

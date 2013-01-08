@@ -78,7 +78,6 @@ static	Drawable	xscreenid;
 static	Visual		*xvis;
 
 static int xdraw(Memdrawparam*);
-static void sendmouse(void);
 
 #define glenda_width 48
 #define glenda_height 48
@@ -1287,7 +1286,7 @@ xmouse(XEvent *e)
 {
 //	Mousestate ms;
 	uint b;
-	int i, s;
+	int s;
 	XButtonEvent *be;
 	XMotionEvent *me;
 	Point dp, p;

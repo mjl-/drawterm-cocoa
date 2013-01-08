@@ -53,7 +53,7 @@ Memimage *memopaque;
 int	_ifmt(Fmt*);
 
 void
-memimageinit(void)
+_memimageinit(void)
 {
 	static int didinit = 0;
 
@@ -93,15 +93,12 @@ memimageinit(void)
 	memtransparent = memzeros;
 }
 
-static u32int imgtorgba(Memimage*, u32int);
-static u32int rgbatoimg(Memimage*, u32int);
-static u32int pixelbits(Memimage*, Point);
-
 #define DBG if(0)
-void
-memimagedraw(Memimage *dst, Rectangle r, Memimage *src, Point p0, Memimage *mask, Point p1, int op)
+static Memdrawparam par;
+
+Memdrawparam*
+_memimagedrawsetup(Memimage *dst, Rectangle r, Memimage *src, Point p0, Memimage *mask, Point p1, int op)
 {
-	Memdrawparam par;
 
 	if(mask == nil)
 		mask = memopaque;
@@ -111,13 +108,13 @@ DBG	print("memimagedraw %p/%luX %R @ %p %p/%luX %P %p/%luX %P... ", dst, dst->ch
 	if(drawclip(dst, &r, src, &p0, mask, &p1, &par.sr, &par.mr) == 0){
 //		if(drawdebug)
 //			iprint("empty clipped rectangle\n");
-		return;
+		return nil;
 	}
 
 	if(op < Clear || op > SoverD){
 //		if(drawdebug)
 //			iprint("op out of range: %d\n", op);
-		return;
+		return nil;
 	}
 
 	par.op = op;
@@ -132,13 +129,13 @@ DBG	print("memimagedraw %p/%luX %R @ %p %p/%luX %P %p/%luX %P... ", dst, dst->ch
 	if(src->flags&Frepl){
 		par.state |= Replsrc;
 		if(Dx(src->r)==1 && Dy(src->r)==1){
-			par.sval = pixelbits(src, src->r.min);
+			par.sval = _pixelbits(src, src->r.min);
 			par.state |= Simplesrc;
-			par.srgba = imgtorgba(src, par.sval);
-			par.sdval = rgbatoimg(dst, par.srgba);
+			par.srgba = _imgtorgba(src, par.sval);
+			par.sdval = _rgbatoimg(dst, par.srgba);
 			if((par.srgba&0xFF) == 0 && (op&DoutS)){
 //				if (drawdebug) iprint("fill with transparent source\n");
-				return;	/* no-op successfully handled */
+				return nil;	/* no-op successfully handled */
 			}
 		}
 	}
@@ -146,21 +143,30 @@ DBG	print("memimagedraw %p/%luX %R @ %p %p/%luX %P %p/%luX %P... ", dst, dst->ch
 	if(mask->flags & Frepl){
 		par.state |= Replmask;
 		if(Dx(mask->r)==1 && Dy(mask->r)==1){
-			par.mval = pixelbits(mask, mask->r.min);
+			par.mval = _pixelbits(mask, mask->r.min);
 			if(par.mval == 0 && (op&DoutS)){
 //				if(drawdebug) iprint("fill with zero mask\n");
-				return;	/* no-op successfully handled */
+				return nil;	/* no-op successfully handled */
 			}
 			par.state |= Simplemask;
 			if(par.mval == ~0)
 				par.state |= Fullmask;
-			par.mrgba = imgtorgba(mask, par.mval);
+			par.mrgba = _imgtorgba(mask, par.mval);
 		}
 	}
 
 //	if(drawdebug)
 //		iprint("dr %R sr %R mr %R...", r, par.sr, par.mr);
 DBG print("draw dr %R sr %R mr %R %lux\n", r, par.sr, par.mr, par.state);
+
+	return &par;
+}
+
+void
+_memimagedraw(Memdrawparam *par)
+{
+	if (par == nil)
+		return;
 
 	/*
 	 * Now that we've clipped the parameters down to be consistent, we 
@@ -175,7 +181,7 @@ DBG print("draw dr %R sr %R mr %R %lux\n", r, par.sr, par.mr, par.state);
 	 * There could be an if around this checking to see if dst is in video memory.
 	 */
 DBG print("test hwdraw\n");
-	if(hwdraw(&par)){
+	if(hwdraw(par)){
 //if(drawdebug) iprint("hw handled\n");
 DBG print("hwdraw handled\n");
 		return;
@@ -184,7 +190,7 @@ DBG print("hwdraw handled\n");
 	 * Optimizations using memmove and memset.
 	 */
 DBG print("test memoptdraw\n");
-	if(memoptdraw(&par)){
+	if(memoptdraw(par)){
 //if(drawdebug) iprint("memopt handled\n");
 DBG print("memopt handled\n");
 		return;
@@ -195,7 +201,7 @@ DBG print("memopt handled\n");
 	 * Solid source color being painted through a boolean mask onto a high res image.
 	 */
 DBG print("test chardraw\n");
-	if(chardraw(&par)){
+	if(chardraw(par)){
 //if(drawdebug) iprint("chardraw handled\n");
 DBG print("chardraw handled\n");
 		return;
@@ -205,7 +211,7 @@ DBG print("chardraw handled\n");
 	 * General calculation-laden case that does alpha for each pixel.
 	 */
 DBG print("do alphadraw\n");
-	alphadraw(&par);
+	alphadraw(par);
 //if(drawdebug) iprint("alphadraw handled\n");
 DBG print("alphadraw handled\n");
 }
@@ -1928,8 +1934,8 @@ convfn(Memimage *dst, Param *dpar, Memimage *src, Param *spar, int *ndrawbuf)
 	return genconv;
 }
 
-static u32int
-pixelbits(Memimage *i, Point pt)
+u32int
+_pixelbits(Memimage *i, Point pt)
 {
 	uchar *p;
 	u32int val;
@@ -2043,8 +2049,8 @@ memset24(void *vp, u32int val, int n)
 	}
 }
 
-static u32int
-imgtorgba(Memimage *img, u32int val)
+u32int
+_imgtorgba(Memimage *img, u32int val)
 {
 	uchar r, g, b, a;
 	int nb, ov, v;
@@ -2091,8 +2097,8 @@ imgtorgba(Memimage *img, u32int val)
 	return (r<<24)|(g<<16)|(b<<8)|a;	
 }
 
-static u32int
-rgbatoimg(Memimage *img, u32int rgba)
+u32int
+_rgbatoimg(Memimage *img, u32int rgba)
 {
 	u32int chan;
 	int d, nb;
@@ -2561,7 +2567,7 @@ membyteval(Memimage *src)
 #endif
 
 void
-memfillcolor(Memimage *i, u32int val)
+_memfillcolor(Memimage *i, u32int val)
 {
 	u32int bits;
 	int d, y;
@@ -2570,7 +2576,7 @@ memfillcolor(Memimage *i, u32int val)
 	if(val == DNofill)
 		return;
 
-	bits = rgbatoimg(i, val);
+	bits = _rgbatoimg(i, val);
 	switch(i->depth){
 	case 24:	/* 24-bit images suck */
 		for(y=i->r.min.y; y<i->r.max.y; y++)
