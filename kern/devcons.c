@@ -351,10 +351,10 @@ echo(char *buf, int n)
 		case 'k':
 			killbig("^t ^t k");
 			return;
-		case 'r':
-			exit(0);
-			return;
-		}
+	//	case 'r':
+	//		exit(0);
+	//		return;
+	//	}
 	}
 
 	qproduce(kbdq, buf, n);
