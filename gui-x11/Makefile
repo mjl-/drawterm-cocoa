@@ -4,8 +4,9 @@ LIB=libgui.a
 
 OFILES=\
 	x11.$O\
-	x11-pixelbits.$O\
-	keysym2ucs-x11.$O
+	keysym2ucs-x11.$O\
+
+#	x11-pixelbits.$O\
 
 default: $(LIB)
 $(LIB): $(OFILES)

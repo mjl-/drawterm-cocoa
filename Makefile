@@ -15,6 +15,7 @@ OFILES=\
 	$(XOFILES)\
 
 LIBS1=\
+	gui-$(GUI)/libgui.a\
 	kern/libkern.a\
 	exportfs/libexportfs.a\
 	libauth/libauth.a\
@@ -24,7 +25,6 @@ LIBS1=\
 	libmp/libmp.a\
 	libmemdraw/libmemdraw.a\
 	libmemlayer/libmemlayer.a\
-	gui-$(GUI)/libgui.a\
 	libdraw/libdraw.a\
 	libc/libc.a\
 #	libip/libip.a\
