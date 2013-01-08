@@ -544,7 +544,7 @@ static	int	putsnarf, assertsnarf;
 void
 flushmemscreen(Rectangle r)
 {
-	assert(!drawcanqlock());
+//	assert(!drawcanqlock());
 	if(r.min.x >= r.max.x || r.min.y >= r.max.y)
 		return;
 	XCopyArea(xdisplay, xscreenid, xdrawable, xgccopy, r.min.x, r.min.y, Dx(r), Dy(r), r.min.x, r.min.y);
@@ -574,7 +574,8 @@ attachscreen(Rectangle *r, ulong *chan, int *depth,
 	*chan = gscreen->chan;
 	*depth = gscreen->depth;
 	*width = gscreen->width;
-	*X = gscreen->X;
+	if(X != nil)
+		*X = gscreen->X;
 	*softscreen = 1;
 
 	return gscreen->data->bdata;
