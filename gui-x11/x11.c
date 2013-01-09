@@ -1283,7 +1283,6 @@ xkeyboard(XEvent *e)
 static void
 xmouse(XEvent *e)
 {
-//	Mousestate ms;
 	uint b;
 	int s;
 	XButtonEvent *be;
@@ -1314,12 +1313,9 @@ xmouse(XEvent *e)
 		&& (~be->state&0xFFFF)==0
 		&& (~be->button&0xFF)==0)
 			return;
-//		ms.xy.x = be->x;
-//		ms.xy.y = be->y;
 		dp = Pt(be->x - p.x, be->y - p.y);
 		s = be->state;
 		msec = be->time;
-//		ms.msec = be->time;
 		switch(be->button){
 		case 1:
 			s |= Button1Mask;
@@ -1340,10 +1336,7 @@ xmouse(XEvent *e)
 		break;
 	case ButtonRelease:
 		be = (XButtonEvent *)e;
-//		ms.xy.x = be->x;
-//		ms.xy.y = be->y;
 		msec = be->time;
-//		ms.msec = be->time;
 		dp = Pt(be->x - p.x, be->y - p.y);
 		s = be->state;
 		switch(be->button){
@@ -1368,56 +1361,25 @@ xmouse(XEvent *e)
 		me = (XMotionEvent *)e;
 		s = me->state;
 		dp = Pt(me->x -p.x, me->y - p.y);
-//		ms.xy.x = me->x;
-//		ms.xy.y = me->y;
-//		ms.msec = me->time;
 		msec = me->time;
 		break;
 	default:
 		return;
 	}
 
-//	ms.buttons = 0;
 	b = 0;
 	if(s & Button1Mask)
 		b |= 1;
-//		ms.buttons |= 1;
 	if(s & Button2Mask)
 		b |= 2;
-//		ms.buttons |= 2;
 	if(s & Button3Mask)
 		b |= 4;
-//		ms.buttons |= 4;
 	if(s & Button4Mask)
 		b |= 8;
-//		ms.buttons |= 8;
 	if(s & Button5Mask)
 		b |=16;
-//		ms.buttons |= 16;
 
 	mousetrack(dp.x, dp.y, b, msec);
-
-#if 0
-	lock(&mouse.lk);
-	i = mouse.wi;
-	if(mousequeue) {
-		if(i == mouse.ri || mouse.lastb != ms.buttons || mouse.trans) {
-			mouse.wi = (i+1)%Mousequeue;
-			if(mouse.wi == mouse.ri)
-				mouse.ri = (mouse.ri+1)%Mousequeue;
-			mouse.trans = mouse.lastb != ms.buttons;
-		} else {
-			i = (i-1+Mousequeue)%Mousequeue;
-		}
-	} else {
-		mouse.wi = (i+1)%Mousequeue;
-		mouse.ri = i;
-	}
-	mouse.queue[i] = ms;
-	mouse.lastb = ms.buttons;
-	unlock(&mouse.lk);
-	wakeup(&mouse.r);
-#endif
 }
 
 void
