@@ -78,7 +78,7 @@ int		fmtfdflush(Fmt *f);
 int		fmtfdinit(Fmt *f, int fd, char *buf, int size);
 int		fmtinstall(int c, int (*f)(Fmt*));
 int		fmtnullinit(Fmt*);
-void		fmtlocaleinit(Fmt*, char*, char*, char*);
+// void		fmtlocaleinit(Fmt*, char*, char*, char*);
 int		fmtprint(Fmt *f, char *fmt, ...);
 int		fmtrune(Fmt *f, int r);
 int		fmtrunestrcpy(Fmt *f, Rune *s);

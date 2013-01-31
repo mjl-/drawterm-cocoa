@@ -10,7 +10,7 @@ runeFmtStrFlush(Fmt *f)
 
 	if(f->start == nil)
 		return 0;
-	n = (int)(uintptr)f->farg;
+	n = (uintptr)f->farg;
 	n *= 2;
 	s = f->start;
 	f->start = realloc(s, sizeof(Rune)*n);
@@ -21,7 +21,7 @@ runeFmtStrFlush(Fmt *f)
 		free(s);
 		return 0;
 	}
-	f->farg = (void*)n;
+	f->farg = (void*)(uintptr)n;
 	f->to = (Rune*)f->start + ((Rune*)f->to - s);
 	f->stop = (Rune*)f->start + n - 1;
 	return 1;
@@ -41,8 +41,9 @@ runefmtstrinit(Fmt *f)
 	f->to = f->start;
 	f->stop = (Rune*)f->start + n - 1;
 	f->flush = runeFmtStrFlush;
-	f->farg = (void*)n;
+	f->farg = (void*)(uintptr)n;
 	f->nfmt = 0;
+//	fmtlocaleinit(f, nil, nil, nil);
 	return 0;
 }
 
@@ -57,8 +58,9 @@ runevsmprint(char *fmt, va_list args)
 
 	if(runefmtstrinit(&f) < 0)
 		return nil;
-	f.args = args;
+	VA_COPY(f.args,args);
 	n = dofmt(&f, fmt);
+	VA_END(f.args);
 	if(f.start == nil)
 		return nil;
 	if(n < 0){
@@ -66,5 +68,5 @@ runevsmprint(char *fmt, va_list args)
 		return nil;
 	}
 	*(Rune*)f.to = '\0';
-	return f.start;
+	return (Rune*)f.start;
 }

@@ -1,5 +1,6 @@
 #include <u.h>
 #include <libc.h>
+#include "fmtdef.h"
 
 int
 vsnprint(char *buf, int len, char *fmt, va_list args)
@@ -15,8 +16,10 @@ vsnprint(char *buf, int len, char *fmt, va_list args)
 	f.flush = nil;
 	f.farg = nil;
 	f.nfmt = 0;
-	f.args = args;
+	VA_COPY(f.args,args);
+//	fmtlocaleinit(&f, nil, nil, nil);
 	dofmt(&f, fmt);
+	VA_END(f.args);
 	*(char*)f.to = '\0';
 	return (char*)f.to - buf;
 }

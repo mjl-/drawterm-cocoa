@@ -43,6 +43,7 @@ fmtstrinit(Fmt *f)
 	f->flush = fmtStrFlush;
 	f->farg = (void*)n;
 	f->nfmt = 0;
+//	fmtlocaleinit(f, nil, nil, nil);
 	return 0;
 }
 
@@ -57,8 +58,9 @@ vsmprint(char *fmt, va_list args)
 
 	if(fmtstrinit(&f) < 0)
 		return nil;
-	f.args = args;
+	VA_COPY(f.args,args);
 	n = dofmt(&f, fmt);
+	VA_END(f.args);
 	if(f.start == nil)
 		return nil;
 	if(n < 0){
