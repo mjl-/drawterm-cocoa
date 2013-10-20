@@ -815,8 +815,12 @@ xinitscreen(void)
 	attrs.background_pixel = 0;
 	attrs.border_pixel = 0;
 	/* attrs.override_redirect = 1;*/ /* WM leave me alone! |CWOverrideRedirect */
+/* removed for TigerVNC support:
 	xdrawable = XCreateWindow(xdisplay, rootwin, 0, 0, xsize, ysize, 0, 
 		xscreendepth, InputOutput, xvis, CWBackPixel|CWBorderPixel|CWColormap, &attrs);
+*/
+	xdrawable = XCreateSimpleWindow(xdisplay, rootwin, 0, 0, xsize, ysize,
+		0, 0, 0);
 
 	/* load the given bitmap data and create an X pixmap containing it. */
 	icon_pixmap = XCreateBitmapFromData(xdisplay,
