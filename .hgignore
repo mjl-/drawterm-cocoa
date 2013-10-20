@@ -1,3 +1,8 @@
+syntax:glob
+*.a
+*.o
+
+syntax:regexp
 (^|/)CVS($|/)
 (^|/)\.hg($|/)
 (^|/)\.hgtags($|/)
@@ -5,3 +10,4 @@
 ^state$
 ^state.old$
 ^state.journal$
+
