@@ -183,7 +183,7 @@ static	char Ewriteoutside[] =	"writeimage outside image";
 static	char Enotfont[] =	"image not a font";
 static	char Eindex[] =		"character index out of range";
 static	char Enoclient[] =	"no such draw client";
-static	char Edepth[] =		"image has bad depth";
+//static	char Edepth[] =		"image has bad depth";
 static	char Enameused[] =	"image name in use";
 static	char Enoname[] =	"no image with that name";
 static	char Eoldname[] =	"named image no longer valid";
@@ -448,6 +448,13 @@ drawflush(void)
 	if(flushrect.min.x < flushrect.max.x)
 		flushmemscreen(flushrect);
 	flushrect = Rect(10000, 10000, -10000, -10000);
+}
+
+void
+drawflushr(Rectangle r)
+{
+	addflush(r);
+	drawflush();
 }
 
 static
@@ -941,19 +948,20 @@ makescreenimage(void)
 	Memdata *md;
 	Memimage *i;
 	Rectangle r;
+	void *X;
 
 	md = malloc(sizeof *md);
 	if(md == nil)
 		return nil;
 	md->allocd = 1;
 	md->base = nil;
-	md->bdata = attachscreen(&r, &chan, &depth, &width, &sdraw.softscreen);
-	if(md->bdata == nil){
+	md->bdata = attachscreen(&r, &chan, &depth, &width, &sdraw.softscreen, &X);
+	if(md->bdata == nil && X == nil){
 		free(md);
 		return nil;
 	}
 	md->ref = 1;
-	i = allocmemimaged(r, chan, md);
+	i = allocmemimaged(r, chan, md, X);
 	if(i == nil){
 		free(md);
 		return nil;

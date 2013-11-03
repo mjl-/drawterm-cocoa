@@ -1,14 +1,20 @@
 #include "u.h"
-#include "lib.h"
-#include "dat.h"
-#include "fns.h"
+#include "libc.h"
+#include "kern/mem.h"
+#include "kern/dat.h"
+// #include "fns.h"
 #include "error.h"
+#include "user.h"
 
+#define Image IMAGE
 #include <draw.h>
 #include <memdraw.h>
+typedef struct Channel	Channel;		/* used in keyboard.h */
 #include <keyboard.h>
+
 #include <cursor.h>
-#include "screen.h"
+#include "kern/screen.h"
+#include "bigarrow.h"
 
 #define argv0 "drawterm"
 
@@ -31,6 +37,8 @@
 #undef	Display
 #undef	Cursor
 #define	long	int
+
+extern int		kbdputc(Queue*, int);
 
 /* perfect approximation to NTSC = .299r+.587g+.114b when 0 ≤ r,g,b < 256 */
 #define RGB2K(r,g,b)	((156763*(r)+307758*(g)+59769*(b))>>19)
@@ -410,7 +418,7 @@ xdraw(Memdrawparam *par)
 	 * maybe we should give up on all this?
 	 */
 
-	if((dxm = dst->X) == nil)
+//	if((dxm = dst->X) == nil)
 		return 0;
 
 	/*
@@ -536,7 +544,7 @@ static	int	putsnarf, assertsnarf;
 void
 flushmemscreen(Rectangle r)
 {
-	assert(!drawcanqlock());
+//	assert(!drawcanqlock());
 	if(r.min.x >= r.max.x || r.min.y >= r.max.y)
 		return;
 	XCopyArea(xdisplay, xscreenid, xdrawable, xgccopy, r.min.x, r.min.y, Dx(r), Dy(r), r.min.x, r.min.y);
@@ -566,7 +574,8 @@ attachscreen(Rectangle *r, ulong *chan, int *depth,
 	*chan = gscreen->chan;
 	*depth = gscreen->depth;
 	*width = gscreen->width;
-	*X = gscreen->X;
+	if(X != nil)
+		*X = gscreen->X;
 	*softscreen = 1;
 
 	return gscreen->data->bdata;
@@ -598,10 +607,28 @@ mouseset(Point xy)
 	drawqunlock();
 }
 
+int
+cursoron(int dolock)
+{
+	Point p;
+	if(dolock)
+		lock(&cursor.lk);
+	p = mousexy();
+	mouseset(p);
+	if(dolock)
+		unlock(&cursor.lk);
+	return 0;
+}
+
+void
+cursoroff(int d)
+{
+}
+
 static XCursor xcursor;
 
 void
-setcursor(void)
+setcursorX(Cursor *cursor)
 {
 	XCursor xc;
 	XColor fg, bg;
@@ -610,8 +637,8 @@ setcursor(void)
 	uchar src[2*16], mask[2*16];
 
 	for(i=0; i<2*16; i++){
-		src[i] = revbyte(cursor.set[i]);
-		mask[i] = revbyte(cursor.set[i] | cursor.clr[i]);
+		src[i] = revbyte(cursor->set[i]);
+		mask[i] = revbyte(cursor->set[i] | cursor->clr[i]);
 	}
 
 	drawqlock();
@@ -619,7 +646,7 @@ setcursor(void)
 	bg = map[255];
 	xsrc = XCreateBitmapFromData(xdisplay, xdrawable, (char*)src, 16, 16);
 	xmask = XCreateBitmapFromData(xdisplay, xdrawable, (char*)mask, 16, 16);
-	xc = XCreatePixmapCursor(xdisplay, xsrc, xmask, &fg, &bg, -cursor.offset.x, -cursor.offset.y);
+	xc = XCreatePixmapCursor(xdisplay, xsrc, xmask, &fg, &bg, -cursor->offset.x, -cursor->offset.y);
 	if(xc != 0) {
 		XDefineCursor(xdisplay, xdrawable, xc);
 		if(xcursor != 0)
@@ -630,6 +657,12 @@ setcursor(void)
 	XFreePixmap(xdisplay, xmask);
 	XFlush(xdisplay);
 	drawqunlock();
+}
+
+void
+setcursor(Cursor *curs)
+{
+	setcursorX(curs);
 }
 
 void
@@ -794,8 +827,8 @@ xinitscreen(void)
 	if(xscreenchan == 0)
 		panic("drawterm: unknown screen pixel format\n");
 		
-	screeninfo = DefaultScreenOfDisplay(xdisplay);
-	xcmap = DefaultColormapOfScreen(screeninfo);
+	screen = DefaultScreenOfDisplay(xdisplay);
+	xcmap = DefaultColormapOfScreen(screen);
 
 	if(xvis->class != StaticColor){
 		graphicscmap(map);
@@ -803,8 +836,8 @@ xinitscreen(void)
 	}
 
 	r.min = ZP;
-	r.max.x = WidthOfScreen(screeninfo);
-	r.max.y = HeightOfScreen(screeninfo);
+	r.max.x = WidthOfScreen(screen);
+	r.max.y = HeightOfScreen(screen);
 
 	xsize = Dx(r)*3/4;
 	ysize = Dy(r)*3/4;
@@ -813,8 +846,12 @@ xinitscreen(void)
 	attrs.background_pixel = 0;
 	attrs.border_pixel = 0;
 	/* attrs.override_redirect = 1;*/ /* WM leave me alone! |CWOverrideRedirect */
+/* removed for TigerVNC support:
 	xdrawable = XCreateWindow(xdisplay, rootwin, 0, 0, xsize, ysize, 0, 
 		xscreendepth, InputOutput, xvis, CWBackPixel|CWBorderPixel|CWColormap, &attrs);
+*/
+	xdrawable = XCreateSimpleWindow(xdisplay, rootwin, 0, 0, xsize, ysize,
+		0, 0, 0);
 
 	/* load the given bitmap data and create an X pixmap containing it. */
 	icon_pixmap = XCreateBitmapFromData(xdisplay,
@@ -908,8 +945,8 @@ xinitscreen(void)
 	text = XInternAtom(xkmcon, "TEXT", False);
 	compoundtext = XInternAtom(xkmcon, "COMPOUND_TEXT", False);
 
-	xblack = screeninfo->black_pixel;
-	xwhite = screeninfo->white_pixel;
+	xblack = screen->black_pixel;
+	xwhite = screen->white_pixel;
 	return gscreen;
 }
 
@@ -1250,10 +1287,12 @@ xkeyboard(XEvent *e)
 static void
 xmouse(XEvent *e)
 {
-	Mousestate ms;
-	int i, s;
+	uint b;
+	int s;
 	XButtonEvent *be;
 	XMotionEvent *me;
+	Point dp, p;
+	Time msec;
 
 	if(putsnarf != assertsnarf){
 		assertsnarf = putsnarf;
@@ -1262,6 +1301,8 @@ xmouse(XEvent *e)
 			XSetSelectionOwner(xkmcon, clipboard, xdrawable, CurrentTime);
 		XFlush(xkmcon);
 	}
+
+	p = mousexy();
 
 	switch(e->type){
 	case ButtonPress:
@@ -1276,10 +1317,9 @@ xmouse(XEvent *e)
 		&& (~be->state&0xFFFF)==0
 		&& (~be->button&0xFF)==0)
 			return;
-		ms.xy.x = be->x;
-		ms.xy.y = be->y;
+		dp = Pt(be->x - p.x, be->y - p.y);
 		s = be->state;
-		ms.msec = be->time;
+		msec = be->time;
 		switch(be->button){
 		case 1:
 			s |= Button1Mask;
@@ -1300,9 +1340,8 @@ xmouse(XEvent *e)
 		break;
 	case ButtonRelease:
 		be = (XButtonEvent *)e;
-		ms.xy.x = be->x;
-		ms.xy.y = be->y;
-		ms.msec = be->time;
+		msec = be->time;
+		dp = Pt(be->x - p.x, be->y - p.y);
 		s = be->state;
 		switch(be->button){
 		case 1:
@@ -1325,45 +1364,26 @@ xmouse(XEvent *e)
 	case MotionNotify:
 		me = (XMotionEvent *)e;
 		s = me->state;
-		ms.xy.x = me->x;
-		ms.xy.y = me->y;
-		ms.msec = me->time;
+		dp = Pt(me->x -p.x, me->y - p.y);
+		msec = me->time;
 		break;
 	default:
 		return;
 	}
 
-	ms.buttons = 0;
+	b = 0;
 	if(s & Button1Mask)
-		ms.buttons |= 1;
+		b |= 1;
 	if(s & Button2Mask)
-		ms.buttons |= 2;
+		b |= 2;
 	if(s & Button3Mask)
-		ms.buttons |= 4;
+		b |= 4;
 	if(s & Button4Mask)
-		ms.buttons |= 8;
+		b |= 8;
 	if(s & Button5Mask)
-		ms.buttons |= 16;
+		b |=16;
 
-	lock(&mouse.lk);
-	i = mouse.wi;
-	if(mousequeue) {
-		if(i == mouse.ri || mouse.lastb != ms.buttons || mouse.trans) {
-			mouse.wi = (i+1)%Mousequeue;
-			if(mouse.wi == mouse.ri)
-				mouse.ri = (mouse.ri+1)%Mousequeue;
-			mouse.trans = mouse.lastb != ms.buttons;
-		} else {
-			i = (i-1+Mousequeue)%Mousequeue;
-		}
-	} else {
-		mouse.wi = (i+1)%Mousequeue;
-		mouse.ri = i;
-	}
-	mouse.queue[i] = ms;
-	mouse.lastb = ms.buttons;
-	unlock(&mouse.lk);
-	wakeup(&mouse.r);
+	mousetrack(dp.x, dp.y, b, msec);
 }
 
 void
@@ -1623,3 +1643,13 @@ clipwrite(char *buf)
 	return 0;
 }
 
+void
+mousectl(Cmdbuf *cb)
+{
+}
+
+char*
+getconf(char *name)
+{
+	return getenv(name);	/* leak */
+}

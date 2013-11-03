@@ -26,7 +26,7 @@ extern	Screeninfo screeninfo;
 extern	Cursor arrow;
 
 /* screen.c */
-extern uchar* attachscreen(Rectangle*, ulong*, int*, int*, int*);
+extern uchar* attachscreen(Rectangle*, ulong*, int*, int*, int*, void**);
 void	screeninit(void);
 void	screenload(Rectangle, int, uchar *, Point, int);
 void	getcolor(ulong, ulong*, ulong*, ulong*);

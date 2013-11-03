@@ -17,7 +17,7 @@ typedef struct	RGB RGB;
 typedef struct	Screen Screen;
 typedef struct	Subfont Subfont;
 
-#pragma incomplete Mouse
+//#pragma incomplete Mouse
 
 #ifdef VARARGCK
 #pragma varargck	type	"R"	Rectangle

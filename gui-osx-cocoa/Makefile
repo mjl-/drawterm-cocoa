@@ -5,6 +5,7 @@ LIB=libgui.a
 OFILES=\
 	alloc.$O\
 	cload.$O\
+	draw.$O\
 	load.$O\
 	mouseswap.$O\
 	screen.$O\

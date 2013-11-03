@@ -35,7 +35,7 @@ static struct {
 } term;
 
 static void termputs(char*, int);
-static void showkmesg(void);
+//static void showkmesg(void);
 static void kickscreen(void);
 
 void
@@ -370,6 +370,6 @@ kickscreen(void)
 	int width;
 	int softscreen;
 	
-	attachscreen(&r, &chan, &depth, &width, &softscreen);
+	attachscreen(&r, &chan, &depth, &width, &softscreen, nil);
 	termreplacescreenimage(gscreen);
 }

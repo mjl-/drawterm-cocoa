@@ -53,7 +53,7 @@ Memimage *memopaque;
 int	_ifmt(Fmt*);
 
 void
-memimageinit(void)
+_memimageinit(void)
 {
 	static int didinit = 0;
 
@@ -61,11 +61,6 @@ memimageinit(void)
 		return;
 
 	didinit = 1;
-
-/* no pool
-	if(strcmp(imagmem->name, "Image") == 0 || strcmp(imagmem->name, "image") == 0)
-		imagmem->move = memimagemove;
-*/
 
 	mktables();
 	_memmkcmap();
@@ -93,32 +88,31 @@ memimageinit(void)
 	memtransparent = memzeros;
 }
 
-static u32int imgtorgba(Memimage*, u32int);
-static u32int rgbatoimg(Memimage*, u32int);
-static u32int pixelbits(Memimage*, Point);
+u32int _imgtorgba(Memimage*, u32int);
+u32int _rgbatoimg(Memimage*, u32int);
+u32int _pixelbits(Memimage*, Point);
 
-#define DBG if(0)
-void
-memimagedraw(Memimage *dst, Rectangle r, Memimage *src, Point p0, Memimage *mask, Point p1, int op)
+#define DBG if(drawdebug)
+static Memdrawparam par;
+
+Memdrawparam*
+_memimagedrawsetup(Memimage *dst, Rectangle r, Memimage *src, Point p0, Memimage *mask, Point p1, int op)
 {
-	static int n = 0;
-	Memdrawparam par;
-
 	if(mask == nil)
 		mask = memopaque;
 
 DBG	print("memimagedraw %p/%luX %R @ %p %p/%luX %P %p/%luX %P... ", dst, dst->chan, r, dst->data->bdata, src, src->chan, p0, mask, mask->chan, p1);
 
 	if(drawclip(dst, &r, src, &p0, mask, &p1, &par.sr, &par.mr) == 0){
-//		if(drawdebug)
-//			iprint("empty clipped rectangle\n");
-		return;
+/*		if(drawdebug) */
+/*			iprint("empty clipped rectangle\n"); */
+		return nil;
 	}
 
 	if(op < Clear || op > SoverD){
-//		if(drawdebug)
-//			iprint("op out of range: %d\n", op);
-		return;
+/*		if(drawdebug) */
+/*			iprint("op out of range: %d\n", op); */
+		return nil;
 	}
 
 	par.op = op;
@@ -135,12 +129,14 @@ DBG	print("memimagedraw %p/%luX %R @ %p %p/%luX %P %p/%luX %P... ", dst, dst->ch
 		if(Dx(src->r)==1 && Dy(src->r)==1){
 			par.sval = pixelbits(src, src->r.min);
 			par.state |= Simplesrc;
-			par.srgba = imgtorgba(src, par.sval);
-			par.sdval = rgbatoimg(dst, par.srgba);
+			par.srgba = _imgtorgba(src, par.sval);
+			par.sdval = _rgbatoimg(dst, par.srgba);
 			if((par.srgba&0xFF) == 0 && (op&DoutS)){
-//				if (drawdebug) iprint("fill with transparent source\n");
-				return;	/* no-op successfully handled */
+/*				if (drawdebug) iprint("fill with transparent source\n"); */
+				return nil;	/* no-op successfully handled */
 			}
+			if((par.srgba&0xFF) == 0xFF)
+				par.state |= Fullsrc;
 		}
 	}
 
@@ -149,19 +145,28 @@ DBG	print("memimagedraw %p/%luX %R @ %p %p/%luX %P %p/%luX %P... ", dst, dst->ch
 		if(Dx(mask->r)==1 && Dy(mask->r)==1){
 			par.mval = pixelbits(mask, mask->r.min);
 			if(par.mval == 0 && (op&DoutS)){
-//				if(drawdebug) iprint("fill with zero mask\n");
-				return;	/* no-op successfully handled */
+/*				if(drawdebug) iprint("fill with zero mask\n"); */
+				return nil;	/* no-op successfully handled */
 			}
 			par.state |= Simplemask;
 			if(par.mval == ~0)
 				par.state |= Fullmask;
-			par.mrgba = imgtorgba(mask, par.mval);
+			par.mrgba = _imgtorgba(mask, par.mval);
 		}
 	}
 
-//	if(drawdebug)
-//		iprint("dr %R sr %R mr %R...", r, par.sr, par.mr);
+/*	if(drawdebug) */
+/*		iprint("dr %R sr %R mr %R...", r, par.sr, par.mr); */
 DBG print("draw dr %R sr %R mr %R %lux\n", r, par.sr, par.mr, par.state);
+
+	return &par;
+}
+
+void
+_memimagedraw(Memdrawparam *par)
+{
+	if (par == nil)
+		return;
 
 	/*
 	 * Now that we've clipped the parameters down to be consistent, we 
@@ -176,8 +181,8 @@ DBG print("draw dr %R sr %R mr %R %lux\n", r, par.sr, par.mr, par.state);
 	 * There could be an if around this checking to see if dst is in video memory.
 	 */
 DBG print("test hwdraw\n");
-	if(hwdraw(&par)){
-//if(drawdebug) iprint("hw handled\n");
+	if(hwdraw(par)){
+/*if(drawdebug) iprint("hw handled\n"); */
 DBG print("hwdraw handled\n");
 		return;
 	}
@@ -185,8 +190,8 @@ DBG print("hwdraw handled\n");
 	 * Optimizations using memmove and memset.
 	 */
 DBG print("test memoptdraw\n");
-	if(memoptdraw(&par)){
-//if(drawdebug) iprint("memopt handled\n");
+	if(memoptdraw(par)){
+/*if(drawdebug) iprint("memopt handled\n"); */
 DBG print("memopt handled\n");
 		return;
 	}
@@ -196,8 +201,8 @@ DBG print("memopt handled\n");
 	 * Solid source color being painted through a boolean mask onto a high res image.
 	 */
 DBG print("test chardraw\n");
-	if(chardraw(&par)){
-//if(drawdebug) iprint("chardraw handled\n");
+	if(chardraw(par)){
+/*if(drawdebug) iprint("chardraw handled\n"); */
 DBG print("chardraw handled\n");
 		return;
 	}
@@ -206,8 +211,8 @@ DBG print("chardraw handled\n");
 	 * General calculation-laden case that does alpha for each pixel.
 	 */
 DBG print("do alphadraw\n");
-	alphadraw(&par);
-//if(drawdebug) iprint("alphadraw handled\n");
+	alphadraw(par);
+/*if(drawdebug) iprint("alphadraw handled\n"); */
 DBG print("alphadraw handled\n");
 }
 #undef DBG
@@ -453,6 +458,7 @@ struct Param {
 static uchar *drawbuf;
 static int	ndrawbuf;
 static int	mdrawbuf;
+static Param spar, mpar, dpar;	/* easier on the stacks */
 static Readfn	greymaskread, replread, readptr;
 static Writefn	nullwrite;
 static Calcfn	alphacalc0, alphacalc14, alphacalc2810, alphacalc3679, alphacalc5, alphacalc11, alphacalcS;
@@ -463,8 +469,7 @@ static Readfn*	readalphafn(Memimage*);
 static Writefn*	writefn(Memimage*);
 
 static Calcfn*	boolcopyfn(Memimage*, Memimage*);
-static Readfn*	convfn(Memimage*, Param*, Memimage*, Param*, int*);
-static Readfn*	ptrfn(Memimage*);
+static Readfn*	convfn(Memimage*, Param*, Memimage*, Param*);
 
 static Calcfn *alphacalc[Ncomp] = 
 {
@@ -498,35 +503,25 @@ static Calcfn *boolcalc[Ncomp] =
 	boolcalc1011,		/* SoverD */
 };
 
-/*
- * Avoid standard Lock, QLock so that can be used in kernel.
- */
-typedef struct Dbuf Dbuf;
-struct Dbuf
+static int
+allocdrawbuf(void)
 {
 	uchar *p;
-	int n;
-	Param spar, mpar, dpar;
-	int inuse;
-};
-static Dbuf dbuf[10];
 
-static Dbuf*
-allocdbuf(void)
-{
-	int i;
-
-	for(i=0; i<nelem(dbuf); i++){
-		if(dbuf[i].inuse)
-			continue;
-		if(!tas(&dbuf[i].inuse))
-			return &dbuf[i];
+	if(ndrawbuf > mdrawbuf){
+		p = realloc(drawbuf, ndrawbuf);
+		if(p == nil){
+			werrstr("memimagedraw out of memory");
+			return -1;
+		}
+		drawbuf = p;
+		mdrawbuf = ndrawbuf;
 	}
-	return nil;
+	return 0;
 }
 
 static void
-getparam(Param *p, Memimage *img, Rectangle r, int convgrey, int needbuf, int *ndrawbuf)
+getparam(Param *p, Memimage *img, Rectangle r, int convgrey, int needbuf)
 {
 	int nbuf;
 
@@ -556,8 +551,8 @@ getparam(Param *p, Memimage *img, Rectangle r, int convgrey, int needbuf, int *n
 		nbuf = Dy(img->r);
 	}
 	p->bufdelta = 4*p->dx;
-	p->bufoff = *ndrawbuf;
-	*ndrawbuf += p->bufdelta*nbuf;
+	p->bufoff = ndrawbuf;
+	ndrawbuf += p->bufdelta*nbuf;
 }
 
 static void
@@ -628,15 +623,13 @@ alphadraw(Memdrawparam *par)
 {
 	int isgrey, starty, endy, op;
 	int needbuf, dsty, srcy, masky;
-	int y, dir, dx, dy, ndrawbuf;
-	uchar *drawbuf;
+	int y, dir, dx, dy;
 	Buffer bsrc, bdst, bmask;
 	Readfn *rdsrc, *rdmask, *rddst;
 	Calcfn *calc;
 	Writefn *wrdst;
 	Memimage *src, *mask, *dst;
 	Rectangle r, sr, mr;
-	Dbuf *z;
 
 	if(drawdebug)
 		print("alphadraw %R\n", par->r);
@@ -644,9 +637,7 @@ alphadraw(Memdrawparam *par)
 	dx = Dx(r);
 	dy = Dy(r);
 
-	z = allocdbuf();
-	if(z == nil)
-		return 0;
+	ndrawbuf = 0;
 
 	src = par->src;
 	mask = par->mask;	
@@ -665,13 +656,12 @@ alphadraw(Memdrawparam *par)
 	 */
 	needbuf = (src->data == dst->data);
 
-	ndrawbuf = 0;
-	getparam(&z->spar, src, sr, isgrey, needbuf, &ndrawbuf);
-	getparam(&z->dpar, dst, r, isgrey, needbuf, &ndrawbuf);
-	getparam(&z->mpar, mask, mr, 0, needbuf, &ndrawbuf);
+	getparam(&spar, src, sr, isgrey, needbuf);
+	getparam(&dpar, dst, r, isgrey, needbuf);
+	getparam(&mpar, mask, mr, 0, needbuf);
 
 	dir = (needbuf && byteaddr(dst, r.min) > byteaddr(src, sr.min)) ? -1 : 1;
-	z->spar.dir = z->mpar.dir = z->dpar.dir = dir;
+	spar.dir = mpar.dir = dpar.dir = dir;
 
 	/*
 	 * If the mask is purely boolean, we can convert from src to dst format
@@ -688,10 +678,10 @@ alphadraw(Memdrawparam *par)
 	 * but it avoids a fair amount of code duplication to make this a case here
 	 * rather than have a separate booldraw.
 	 */
-//if(drawdebug) iprint("flag %lud mchan %lux=?%x dd %d\n", src->flags&Falpha, mask->chan, GREY1, dst->depth);
+/*if(drawdebug) iprint("flag %lud mchan %lux=?%x dd %d\n", src->flags&Falpha, mask->chan, GREY1, dst->depth); */
 	if(!(src->flags&Falpha) && mask->chan == GREY1 && dst->depth >= 8 && op == SoverD){
-//if(drawdebug) iprint("boolcopy...");
-		rdsrc = convfn(dst, &z->dpar, src, &z->spar, &ndrawbuf);
+/*if(drawdebug) iprint("boolcopy..."); */
+		rdsrc = convfn(dst, &dpar, src, &spar);
 		rddst = readptr;
 		rdmask = readfn(mask);
 		calc = boolcopyfn(dst, mask);
@@ -709,10 +699,10 @@ alphadraw(Memdrawparam *par)
 		 */
 		if(mask->flags&Falpha){
 			rdmask = readalphafn(mask);
-			z->mpar.alphaonly = 1;
+			mpar.alphaonly = 1;
 		}else{
-			z->mpar.greymaskcall = readfn(mask);
-			z->mpar.convgrey = 1;
+			mpar.greymaskcall = readfn(mask);
+			mpar.convgrey = 1;
 			rdmask = greymaskread;
 
 			/*
@@ -734,34 +724,27 @@ alphadraw(Memdrawparam *par)
 	 * If the image has a small enough repl rectangle,
 	 * we can just read each line once and cache them.
 	 */
-	if(z->spar.replcache){
-		z->spar.replcall = rdsrc;
+	if(spar.replcache){
+		spar.replcall = rdsrc;
 		rdsrc = replread;
 	}
-	if(z->mpar.replcache){
-		z->mpar.replcall = rdmask;
+	if(mpar.replcache){
+		mpar.replcall = rdmask;
 		rdmask = replread;
 	}
 
-	if(z->n < ndrawbuf){
-		free(z->p);
-		if((z->p = mallocz(ndrawbuf, 0)) == nil){
-			z->inuse = 0;
-			return 0;
-		}
-		z->n = ndrawbuf;
-	}
-	drawbuf = z->p;
+	if(allocdrawbuf() < 0)
+		return 0;
 
 	/*
 	 * Before we were saving only offsets from drawbuf in the parameter
 	 * structures; now that drawbuf has been grown to accomodate us,
 	 * we can fill in the pointers.
 	 */
-	z->spar.bufbase = drawbuf+z->spar.bufoff;
-	z->mpar.bufbase = drawbuf+z->mpar.bufoff;
-	z->dpar.bufbase = drawbuf+z->dpar.bufoff;
-	z->spar.convbuf = drawbuf+z->spar.convbufoff;
+	spar.bufbase = drawbuf+spar.bufoff;
+	mpar.bufbase = drawbuf+mpar.bufoff;
+	dpar.bufbase = drawbuf+dpar.bufoff;
+	spar.convbuf = drawbuf+spar.convbufoff;
 
 	if(dir == 1){
 		starty = 0;
@@ -792,19 +775,19 @@ alphadraw(Memdrawparam *par)
 		clipy(dst, &dsty);
 		clipy(mask, &masky);
 
-		bsrc = rdsrc(&z->spar, z->spar.bufbase, srcy);
+		bsrc = rdsrc(&spar, spar.bufbase, srcy);
 DBG print("[");
-		bmask = rdmask(&z->mpar, z->mpar.bufbase, masky);
+		bmask = rdmask(&mpar, mpar.bufbase, masky);
 DBG print("]\n");
-		bdst = rddst(&z->dpar, z->dpar.bufbase, dsty);
+		bdst = rddst(&dpar, dpar.bufbase, dsty);
 DBG		dumpbuf("src", bsrc, dx);
 DBG		dumpbuf("mask", bmask, dx);
 DBG		dumpbuf("dst", bdst, dx);
 		bdst = calc(bdst, bsrc, bmask, dx, isgrey, op);
-		wrdst(&z->dpar, z->dpar.bytermin+dsty*z->dpar.bwidth, bdst);
+DBG		dumpbuf("bdst", bdst, dx);
+		wrdst(&dpar, dpar.bytermin+dsty*dpar.bwidth, bdst);
 	}
 
-	z->inuse = 0;
 	return 1;
 }
 #undef DBG
@@ -1045,7 +1028,7 @@ alphacalc11(Buffer bdst, Buffer bsrc, Buffer bmask, int dx, int grey, int op)
 	Buffer obdst;
 	int fd, sadelta;
 	int i, sa, ma, q;
-	ulong t, t1;
+	u32int t, t1;
 
 	USED(op);
 	obdst = bdst;
@@ -1137,7 +1120,7 @@ alphacalcS(Buffer bdst, Buffer bsrc, Buffer bmask, int dx, int grey, int op)
 	Buffer obdst;
 	int fd;
 	int i, ma;
-	u32int s, t;
+	u32int t;
 
 	USED(op);
 	obdst = bdst;
@@ -1209,7 +1192,7 @@ boolcalc236789(Buffer bdst, Buffer bsrc, Buffer bmask, int dx, int grey, int op)
 	Buffer obdst;
 	int fs, fd;
 	int i, ma, da, zero;
-	u32int s, t;
+	u32int t;
 
 	obdst = bdst;
 	zero = !(op&1);
@@ -1582,7 +1565,6 @@ readbyte(Param *p, uchar *buf, int y)
 	alphaonly = p->alphaonly;
 	copyalpha = (img->flags&Falpha) ? 1 : 0;
 
-DBG print("copyalpha %d alphaonly %d convgrey %d isgrey %d\n", copyalpha, alphaonly, convgrey, isgrey);
 	/* if we can, avoid processing everything */
 	if(!(img->flags&Frepl) && !convgrey && (img->flags&Fbytes)){
 		memset(&b, 0, sizeof b);
@@ -1607,7 +1589,6 @@ DBG print("copyalpha %d alphaonly %d convgrey %d isgrey %d\n", copyalpha, alphao
 		return b;
 	}
 
-DBG print("2\n");
 	rrepl = replbit[img->nbits[CRed]];
 	grepl = replbit[img->nbits[CGreen]];
 	brepl = replbit[img->nbits[CBlue]];
@@ -1616,10 +1597,8 @@ DBG print("2\n");
 
 	for(i=0; i<dx; i++){
 		u = r[0] | (r[1]<<8) | (r[2]<<16) | (r[3]<<24);
-		if(copyalpha) {
+		if(copyalpha)
 			*w++ = arepl[(u>>img->shift[CAlpha]) & img->mask[CAlpha]];
-DBG print("a %x\n", w[-1]);
-		}
 
 		if(isgrey)
 			*w++ = krepl[(u >> img->shift[CGrey]) & img->mask[CGrey]];
@@ -1628,9 +1607,7 @@ DBG print("a %x\n", w[-1]);
 			ugrn = grepl[(u >> img->shift[CGreen]) & img->mask[CGreen]];
 			ublu = brepl[(u >> img->shift[CBlue]) & img->mask[CBlue]];
 			if(convgrey){
-DBG print("g %x %x %x\n", ured, ugrn, ublu);
 				*w++ = RGB2K(ured, ugrn, ublu);
-DBG print("%x\n", w[-1]);
 			}else{
 				*w++ = brepl[(u >> img->shift[CBlue]) & img->mask[CBlue]];
 				*w++ = grepl[(u >> img->shift[CGreen]) & img->mask[CGreen]];
@@ -1653,7 +1630,6 @@ DBG print("%x\n", w[-1]);
 		b.grey = buf+copyalpha;
 		b.red = b.grn = b.blu = buf+copyalpha;
 		b.delta = copyalpha+1;
-DBG print("alpha %x grey %x\n", b.alpha ? *b.alpha : 0xFF, *b.grey);
 	}else{
 		b.blu = buf+copyalpha;
 		b.grn = buf+copyalpha+1;
@@ -1726,6 +1702,7 @@ DBG print("|alpha %.8lux...", u);
 		w[1] = u>>8;
 		w[2] = u>>16;
 		w[3] = u>>24;
+DBG print("write back %.8lux...", u);
 		w += nb;
 	}
 }
@@ -1899,16 +1876,16 @@ genconv(Param *p, uchar *buf, int y)
 }
 
 static Readfn*
-convfn(Memimage *dst, Param *dpar, Memimage *src, Param *spar, int *ndrawbuf)
+convfn(Memimage *dst, Param *dpar, Memimage *src, Param *spar)
 {
 	if(dst->chan == src->chan && !(src->flags&Frepl)){
-//if(drawdebug) iprint("readptr...");
+/*if(drawdebug) iprint("readptr..."); */
 		return readptr;
 	}
 
 	if(dst->chan==CMAP8 && (src->chan==GREY1||src->chan==GREY2||src->chan==GREY4)){
 		/* cheat because we know the replicated value is exactly the color map entry. */
-//if(drawdebug) iprint("Readnbit...");
+/*if(drawdebug) iprint("Readnbit..."); */
 		return readnbit;
 	}
 
@@ -1917,20 +1894,25 @@ convfn(Memimage *dst, Param *dpar, Memimage *src, Param *spar, int *ndrawbuf)
 	spar->convdpar = dpar;
 
 	/* allocate a conversion buffer */
-	spar->convbufoff = *ndrawbuf;
-	*ndrawbuf += spar->dx*4;
+	spar->convbufoff = ndrawbuf;
+	ndrawbuf += spar->dx*4;
 
 	if(spar->dx > Dx(spar->img->r)){
 		spar->convdx = spar->dx;
 		spar->dx = Dx(spar->img->r);
 	}
 
-//if(drawdebug) iprint("genconv...");
+/*if(drawdebug) iprint("genconv..."); */
 	return genconv;
 }
 
-static u32int
-pixelbits(Memimage *i, Point pt)
+/*
+ * Do NOT call this directly.  pixelbits is a wrapper
+ * around this that fetches the bits from the X server
+ * when necessary.
+ */
+u32int
+_pixelbits(Memimage *i, Point pt)
 {
 	uchar *p;
 	u32int val;
@@ -1985,12 +1967,13 @@ boolcopyfn(Memimage *img, Memimage *mask)
 	default:
 		assert(0 /* boolcopyfn */);
 	}
-	return nil;
+	return 0;
 }
 
 /*
  * Optimized draw for filling and scrolling; uses memset and memmove.
  */
+#ifdef notdef
 static void
 memsetb(void *vp, uchar val, int n)
 {
@@ -2001,6 +1984,7 @@ memsetb(void *vp, uchar val, int n)
 	while(p<ep)
 		*p++ = val;
 }
+#endif
 
 static void
 memsets(void *vp, ushort val, int n)
@@ -2042,8 +2026,8 @@ memset24(void *vp, u32int val, int n)
 	}
 }
 
-static u32int
-imgtorgba(Memimage *img, u32int val)
+u32int
+_imgtorgba(Memimage *img, u32int val)
 {
 	uchar r, g, b, a;
 	int nb, ov, v;
@@ -2090,8 +2074,8 @@ imgtorgba(Memimage *img, u32int val)
 	return (r<<24)|(g<<16)|(b<<8)|a;	
 }
 
-static u32int
-rgbatoimg(Memimage *img, u32int rgba)
+u32int
+_rgbatoimg(Memimage *img, u32int rgba)
 {
 	u32int chan;
 	int d, nb;
@@ -2131,7 +2115,7 @@ rgbatoimg(Memimage *img, u32int rgba)
 		}
 		d += nb;
 	}
-//	print("rgba2img %.8lux = %.*lux\n", rgba, 2*d/8, v);
+/*	print("rgba2img %.8lux = %.*lux\n", rgba, 2*d/8, v); */
 	return v;
 }
 
@@ -2424,12 +2408,12 @@ if(0) if(drawdebug) iprint("chardraw? mf %lux md %d sf %lux dxs %d dys %d dd %d 
 	mr = par->mr;
 	op = par->op;
 
-	if((par->state&(Replsrc|Simplesrc|Replmask)) != (Replsrc|Simplesrc)
-	|| mask->depth != 1 || src->flags&Falpha || dst->depth<8 || dst->data==src->data
+	if((par->state&(Replsrc|Simplesrc|Fullsrc|Replmask)) != (Replsrc|Simplesrc|Fullsrc)
+	|| mask->depth != 1 || dst->depth<8 || dst->data==src->data
 	|| op != SoverD)
 		return 0;
 
-//if(drawdebug) iprint("chardraw...");
+/*if(drawdebug) iprint("chardraw..."); */
 
 	depth = mask->depth;
 	maskwid = mask->width*sizeof(u32int);
@@ -2465,14 +2449,14 @@ DBG print("bsh %d\n", bsh);
 	sp[2] = v>>16;
 	sp[3] = v>>24;
 
-//print("sp %x %x %x %x\n", sp[0], sp[1], sp[2], sp[3]);
+/*print("sp %x %x %x %x\n", sp[0], sp[1], sp[2], sp[3]); */
 	for(y=0; y<dy; y++, rp+=maskwid, wp+=dstwid){
 		q = rp;
 		if(bsh)
 			bits = *q++;
 		switch(ddepth){
 		case 8:
-//if(drawdebug) iprint("8loop...");
+/*if(drawdebug) iprint("8loop..."); */
 			wc = wp;
 			for(x=bx; x>ex; x--, wc++){
 				i = x&7;
@@ -2534,13 +2518,12 @@ DBG print("\n");
 #undef DBG
 
 
-#if 0
 /*
  * Fill entire byte with replicated (if necessary) copy of source pixel,
  * assuming destination ldepth is >= source ldepth.
  *
  * This code is just plain wrong for >8bpp.
- */
+ *
 u32int
 membyteval(Memimage *src)
 {
@@ -2551,16 +2534,17 @@ membyteval(Memimage *src)
 	bpp = src->depth;
 	uc <<= (src->r.min.x&(7/src->depth))*src->depth;
 	uc &= ~(0xFF>>bpp);
-	/* pixel value is now in high part of byte. repeat throughout byte */
+	* pixel value is now in high part of byte. repeat throughout byte 
 	val = uc;
 	for(i=bpp; i<8; i<<=1)
 		val |= val>>i;
 	return val;
 }
-#endif
+ * 
+ */
 
 void
-memfillcolor(Memimage *i, u32int val)
+_memfillcolor(Memimage *i, u32int val)
 {
 	u32int bits;
 	int d, y;
@@ -2569,7 +2553,7 @@ memfillcolor(Memimage *i, u32int val)
 	if(val == DNofill)
 		return;
 
-	bits = rgbatoimg(i, val);
+	bits = _rgbatoimg(i, val);
 	switch(i->depth){
 	case 24:	/* 24-bit images suck */
 		for(y=i->r.min.y; y<i->r.max.y; y++)

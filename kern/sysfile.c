@@ -706,7 +706,6 @@ kwrite(int fd, void *buf, long nn, vlong *offp)
 	Chan *c;
 	long m, n;
 	vlong off;
-	uchar *p;
 
 	n = 0;
 	c = fdtochan(fd, OWRITE, 1, 1);
@@ -1139,12 +1138,11 @@ _syswstat(char *name, void *d, long nd)
 {
 	Chan *c;
 	uint l;
-	int namelen;
 
 	l = nd;
-	validstat(d, l);
+	validstat(d, nd);
 	c = namec(name, Aaccess, 0, 0);
-	return wstat(c, (uchar*)d, l);
+	return wstat(c, (uchar*)d, nd);
 }
 
 long

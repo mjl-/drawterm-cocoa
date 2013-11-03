@@ -23,7 +23,7 @@ memimagemove(void *from, void *to)
 }
 
 Memimage*
-allocmemimaged(Rectangle r, u32int chan, Memdata *md)
+allocmemimaged(Rectangle r, u32int chan, Memdata *md, void *X)
 {
 	int d;
 	u32int l;
@@ -44,6 +44,7 @@ allocmemimaged(Rectangle r, u32int chan, Memdata *md)
 	if(i == nil)
 		return nil;
 
+	i->X = X;
 	i->data = md;
 	i->zero = sizeof(u32int)*l*r.min.y;
 	
@@ -66,7 +67,7 @@ allocmemimaged(Rectangle r, u32int chan, Memdata *md)
 }
 
 Memimage*
-allocmemimage(Rectangle r, u32int chan)
+_allocmemimage(Rectangle r, u32int chan)
 {
 	int d;
 	uchar *p;
@@ -103,7 +104,7 @@ allocmemimage(Rectangle r, u32int chan)
 	md->bdata = p;
 	md->allocd = 1;
 
-	i = allocmemimaged(r, chan, md);
+	i = allocmemimaged(r, chan, md, nil);
 	if(i == nil){
 		poolfree(imagmem, md->base);
 		free(md);
@@ -114,7 +115,7 @@ allocmemimage(Rectangle r, u32int chan)
 }
 
 void
-freememimage(Memimage *i)
+_freememimage(Memimage *i)
 {
 	if(i == nil)
 		return;
@@ -124,38 +125,6 @@ freememimage(Memimage *i)
 		free(i->data);
 	}
 	free(i);
-}
-
-/*
- * Wordaddr is deprecated.
- */
-u32int*
-wordaddr(Memimage *i, Point p)
-{
-	return (u32int*) ((uintptr)byteaddr(i, p) & ~(sizeof(u32int)-1));
-}
-
-uchar*
-byteaddr(Memimage *i, Point p)
-{
-	uchar *a;
-
-	a = i->data->bdata+i->zero+sizeof(u32int)*p.y*i->width;
-
-	if(i->depth < 8){
-		/*
-		 * We need to always round down,
-		 * but C rounds toward zero.
-		 */
-		int np;
-		np = 8/i->depth;
-		if(p.x < 0)
-			return a+(p.x-np+1)/np;
-		else
-			return a+p.x/np;
-	}
-	else
-		return a+p.x*(i->depth/8);
 }
 
 int

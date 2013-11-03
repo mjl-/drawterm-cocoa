@@ -54,6 +54,8 @@ struct Memimage
 	int		shift[NChan];
 	int		mask[NChan];
 	int		nbits[NChan];
+
+	void	*X;
 };
 
 struct Memcmap
@@ -92,7 +94,8 @@ enum {
 	Simplemask=1<<1,
 	Replsrc=1<<2,
 	Replmask=1<<3,
-	Fullmask=1<<4,
+	Fullsrc=1<<4,
+	Fullmask=1<<5,
 };
 struct	Memdrawparam
 {
@@ -117,7 +120,7 @@ struct	Memdrawparam
  */
 
 extern Memimage*	allocmemimage(Rectangle, u32int);
-extern Memimage*	allocmemimaged(Rectangle, u32int, Memdata*);
+extern Memimage*	allocmemimaged(Rectangle, u32int, Memdata*, void*);
 extern Memimage*	readmemimage(int);
 extern Memimage*	creadmemimage(int);
 extern int	writememimage(int, Memimage*);
@@ -130,6 +133,7 @@ extern uchar*	byteaddr(Memimage*, Point);
 extern int		drawclip(Memimage*, Rectangle*, Memimage*, Point*, Memimage*, Point*, Rectangle*, Rectangle*);
 extern void	memfillcolor(Memimage*, u32int);
 extern int		memsetchan(Memimage*, u32int);
+extern u32int		pixelbits(Memimage*, Point);
 
 /*
  * Graphics
@@ -138,17 +142,14 @@ extern void	memdraw(Memimage*, Rectangle, Memimage*, Point, Memimage*, Point, in
 extern void	memline(Memimage*, Point, Point, int, int, int, Memimage*, Point, int);
 extern void	mempoly(Memimage*, Point*, int, int, int, int, Memimage*, Point, int);
 extern void	memfillpoly(Memimage*, Point*, int, int, Memimage*, Point, int);
-extern void	_memfillpolysc(Memimage*, Point*, int, int, Memimage*, Point, int, int, int, int);
 extern void	memimagedraw(Memimage*, Rectangle, Memimage*, Point, Memimage*, Point, int);
 extern int	hwdraw(Memdrawparam*);
 extern void	memimageline(Memimage*, Point, Point, int, int, int, Memimage*, Point, int);
-extern void	_memimageline(Memimage*, Point, Point, int, int, int, Memimage*, Point, Rectangle, int);
 extern Point	memimagestring(Memimage*, Point, Memimage*, Point, Memsubfont*, char*);
 extern void	memellipse(Memimage*, Point, int, int, int, Memimage*, Point, int);
 extern void	memarc(Memimage*, Point, int, int, int, Memimage*, Point, int, int, int);
 extern Rectangle	memlinebbox(Point, Point, int, int, int);
 extern int	memlineendsize(int);
-extern void	_memmkcmap(void);
 extern void	memimageinit(void);
 
 /*
@@ -184,8 +185,9 @@ extern int		drawdebug;
 /*
  * For other implementations, like x11.
  */
-extern void		_memfillcolor(Memimage*, u32int);
 extern Memimage*	_allocmemimage(Rectangle, u32int);
+extern void		_memfillcolor(Memimage*, u32int);
+extern void	_memfillpolysc(Memimage*, Point*, int, int, Memimage*, Point, int, int, int, int);
 extern int		_cloadmemimage(Memimage*, Rectangle, uchar*, int);
 extern int		_loadmemimage(Memimage*, Rectangle, uchar*, int);
 extern void		_freememimage(Memimage*);
@@ -193,10 +195,11 @@ extern u32int		_rgbatoimg(Memimage*, u32int);
 extern u32int		_imgtorgba(Memimage*, u32int);
 extern u32int		_pixelbits(Memimage*, Point);
 extern int		_unloadmemimage(Memimage*, Rectangle, uchar*, int);
-extern Memdrawparam*	_memimagedrawsetup(Memimage*,
-				Rectangle, Memimage*, Point, Memimage*,
-				Point, int);
-extern void		_memimagedraw(Memdrawparam*);
+extern Memdrawparam*	_memimagedrawsetup(Memimage*, Rectangle, Memimage*, Point, Memimage*, Point, int);
+extern void	_memimagedraw(Memdrawparam*);
+extern void	_memimageline(Memimage*, Point, Point, int, int, int, Memimage*, Point, Rectangle, int);
+extern void	_memmkcmap(void);
+extern void	_memimageinit(void);
 
 /*
  * doprint interface: numbconv bit strings

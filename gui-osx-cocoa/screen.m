@@ -212,13 +212,16 @@ dtdefaults()
 static Memimage* initimg(void);
 
 uchar *
-attachscreen(Rectangle *r, ulong *chan, int *depth, int *width, int *softscreen)
+attachscreen(Rectangle *r, ulong *chan, int *depth, int *width, int *softscreen, void **X)
 {
 	if(gscreen == nil){
 		screeninit();
 		if(gscreen == nil)
 			panic("cannot create OS X screen");
 	}
+
+	if(X != nil)
+		*X = gscreen->X;
 
 	LOG(@"attachscreen %d,%d,%d,%d",
 		gscreen->r.min.x, gscreen->r.min.y, Dx(gscreen->r), Dy(gscreen->r));

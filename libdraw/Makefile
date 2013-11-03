@@ -34,7 +34,6 @@ OFILES=\
 	line.$O\
 	menuhit.$O\
 	mkfont.$O\
-	mouse.$O\
 	openfont.$O\
 	poly.$O\
 	loadimage.$O\
@@ -57,6 +56,7 @@ OFILES=\
 	writeimage.$O\
 	writesubfont.$O\
 
+#	mouse.$O\
 #	event.$O\
 #	newwindow.$O\
 #	readcolmap.$O\

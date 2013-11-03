@@ -584,7 +584,7 @@ p9any(int fd)
 		fatal(1, "cannot write user/domain choice in p9any");
 	if(v2){
 		if(readstr(fd, buf, sizeof buf) < 0)
-			fatal(1, "cannot read OK in p9any: got %d %s", n, buf);
+			fatal(1, "cannot read OK in p9any: %s", buf);
 		if(memcmp(buf, "OK\0", 3) != 0)
 			fatal(1, "did not get OK in p9any");
 	}
@@ -656,7 +656,8 @@ p9any(int fd)
 	|| auth.id != 0){
 		print("?you and auth server agree about password.\n");
 		print("?server is confused.\n");
-		fatal(0, "server lies got %llux.%d want %llux.%d", *(vlong*)auth.chal, auth.id, *(vlong*)cchal, 0);
+		fatal(0, "server lies through its teeth");
+//		fatal(0, "server lies got %llux.%d want %llux.%d", *(vlong*)auth.chal, auth.id, *(vlong*)cchal, 0);
 	}
 	//print("i am %s there.\n", t.suid);
 	ai = mallocz(sizeof(AuthInfo), 1);

@@ -78,10 +78,10 @@ Xflush(Fsrpc *t)
 void
 Xattach(Fsrpc *t)
 {
-	int i, nfd;
+//	int i, nfd;
 	Fcall rhdr;
 	Fid *f;
-	char buf[128];
+//	char buf[128];
 
 	f = newfid(t->work.fid);
 	if(f == 0) {

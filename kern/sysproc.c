@@ -6,13 +6,11 @@
 #include	"error.h"
 
 long
-sysexits(ulong *arg)
+sysexits(char *status)
 {
-	char *status;
 	char *inval = "invalid exit string";
 	char buf[ERRMAX];
 
-	status = (char*)arg[0];
 	if(status){
 		if(waserror())
 			status = inval;

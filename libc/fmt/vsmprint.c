@@ -21,7 +21,7 @@ fmtStrFlush(Fmt *f)
 		free(s);
 		return 0;
 	}
-	f->farg = (void*)n;
+	f->farg = (void*)(uintptr)n;
 	f->to = (char*)f->start + ((char*)f->to - s);
 	f->stop = (char*)f->start + n - 1;
 	return 1;
@@ -41,9 +41,8 @@ fmtstrinit(Fmt *f)
 	f->to = f->start;
 	f->stop = (char*)f->start + n - 1;
 	f->flush = fmtStrFlush;
-	f->farg = (void*)n;
+	f->farg = (void*)(uintptr)n;
 	f->nfmt = 0;
-//	fmtlocaleinit(f, nil, nil, nil);
 	return 0;
 }
 

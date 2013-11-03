@@ -3,7 +3,7 @@
 #include <draw.h>
 
 static int	fontresize(Font*, int, int, int);
-static int	freeup(Font*);
+//static int	freeup(Font*);
 
 #define	PJW	0	/* use NUL==pjw for invisible characters */
 
@@ -317,6 +317,7 @@ loadchar(Font *f, Rune r, Cacheinfo *c, int h, int noflush, char **subfontname)
 	return 1;
 }
 
+#ifdef notdef
 /* release all subfonts, return number freed */
 static
 int
@@ -342,6 +343,7 @@ freeup(Font *f)
 	}
 	return nf;
 }
+#endif
 
 /* return whether resize succeeded && f->cache is unchanged */
 static int

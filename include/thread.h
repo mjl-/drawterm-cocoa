@@ -1,7 +1,9 @@
+#ifdef Plan9
 #pragma src "/sys/src/libthread"
 #pragma lib "libthread.a"
 
 #pragma	varargck	argpos	chanprint	2
+#endif
 
 typedef struct Alt	Alt;
 typedef struct Channel	Channel;
@@ -114,7 +116,7 @@ extern	int	mainstacksize;
 /* slave I/O processes */
 typedef struct Ioproc Ioproc;
 
-#pragma incomplete Ioproc
+//#pragma incomplete Ioproc
 
 
 Ioproc*	ioproc(void);

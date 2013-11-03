@@ -60,8 +60,8 @@ static uchar basekey[3][16] = {
 
 static int aes_setupEnc(ulong rk[/*4*(Nr + 1)*/], const uchar cipherKey[],
 		int keyBits);
-static int aes_setupDec(ulong rk[/*4*(Nr + 1)*/], const uchar cipherKey[],
-		int keyBits);
+//static int aes_setupDec(ulong rk[/*4*(Nr + 1)*/], const uchar cipherKey[],
+//		int keyBits);
 static int aes_setup(ulong erk[/*4*(Nr + 1)*/], ulong drk[/*4*(Nr + 1)*/],
 		const uchar cipherKey[], int keyBits);
 
