@@ -71,7 +71,7 @@ uc2name(Chan *c)
 
 	if(c->name == nil)
 		return "/";
-	s = c2name(c);
+	s = chanpath(c);
 	if(s[0]=='#' && s[1]=='U')
 		return s+2;
 	return s;
@@ -153,32 +153,32 @@ fswalk1(Chan *c, char *name)
 	return 1;
 }
 
-extern Cname* addelem(Cname*, char*);
+extern Path* addelem(Path*, char*, Chan*);
 
 static Walkqid*
 fswalk(Chan *c, Chan *nc, char **name, int nname)
 {
 	int i;
-	Cname *cname;
+	Path *path;
 	Walkqid *wq;
 
 	if(nc != nil)
 		panic("fswalk: nc != nil");
 	wq = smalloc(sizeof(Walkqid)+(nname-1)*sizeof(Qid));
 	nc = devclone(c);
-	cname = c->name;
-	incref(&cname->ref);
+	path = c->path;
+	incref(&path->ref);
 
 	fsclone(c, nc);
 	wq->clone = nc;
 	for(i=0; i<nname; i++){
-		nc->name = cname;
+		nc->path = path;
 		if(fswalk1(nc, name[i]) == 0)
 			break;
-		cname = addelem(cname, name[i]);
+		path = addelem(path, name[i], c);
 		wq->qid[i] = nc->qid;
 	}
-	nc->name = cname;
+	nc->path = path;
 	if(i != nname){
 		cclose(nc);
 		wq->clone = nil;

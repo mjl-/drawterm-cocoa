@@ -6,12 +6,14 @@
 
 #include "u.h"
 #include "lib.h"
+#include 	"mem.h"
 #include "kern/dat.h"
 #include "kern/fns.h"
 #include "error.h"
 #include "user.h"
 #include <draw.h>
 #include <memdraw.h>
+#include <cursor.h>
 #include "screen.h"
 #include "keyboard.h"
 

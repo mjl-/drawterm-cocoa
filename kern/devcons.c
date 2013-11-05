@@ -351,9 +351,11 @@ echo(char *buf, int n)
 		case 'k':
 			killbig("^t ^t k");
 			return;
-	//	case 'r':
-	//		exit(0);
-	//		return;
+/* remove ^t ^t r durring cpu in
+		case 'r':
+			exit(0);
+			return;
+*/
 		}
 	}
 
