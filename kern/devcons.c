@@ -25,6 +25,7 @@ Lock	kprintlock;
 int	iprintscreenputs = 0;
 
 int	panicking;
+extern int dbg;
 
 static struct
 {
@@ -134,7 +135,9 @@ putstrn0(char *str, int n, int usewrite)
 			qwrite(kprintoq, str, n);
 		else
 			qiwrite(kprintoq, str, n);
-	}else if(screenputs != nil)
+	}else if(dbg)
+		write(2, str, n);
+	else if(screenputs != nil)
 		screenputs(str, n);
 }
 
