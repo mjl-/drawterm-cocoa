@@ -78,7 +78,6 @@ void	topwin(void);
 
 static void hidebars(int);
 static void flushimg(NSRect);
-static void autoflushwin(int);
 static void flushwin(void);
 static void followzoombutton(NSRect);
 static void getmousepos(void);
@@ -91,8 +90,6 @@ static void togglefs(void);
 static void acceptresizing(int);
 
 static NSCursor* makecursor(Cursor*);
-
-void _flushmemscreen(Rectangle r);
 
 NSDictionary*
 dtdefaults()
@@ -201,11 +198,6 @@ dtdefaults()
 		hidebars(0);
 	}
 }
-
-- (void)windowWillClose:(id)arg
-{
-	autoflushwin(0);	/* can crash otherwise */
-}
 @end
 
 
@@ -251,7 +243,6 @@ attachscreen(Rectangle *r, ulong *chan, int *depth, int *width, int *softscreen,
 {
 	LOG(@"makeKeyAndOrderFront");
 
-	autoflushwin(1);
 	[win.content setHidden:NO];
 	[super makeKeyAndOrderFront:arg];
 }
@@ -261,11 +252,9 @@ attachscreen(Rectangle *r, ulong *chan, int *depth, int *width, int *softscreen,
 	[NSApp hide:nil];
 
 	[win.content setHidden:YES];
-	autoflushwin(0);
 }
 - (void)deminiaturize:(id)arg
 {
-	autoflushwin(1);
 	[win.content setHidden:NO];
 	[super deminiaturize:arg];
 }
@@ -340,6 +329,7 @@ makewin(NSSize *s)
 		[win.ofs[i] setAcceptsMouseMovedEvents:YES];
 		[win.ofs[i] setDelegate:[NSApp delegate]];
 		[win.ofs[i] setDisplaysWhenScreenProfileChanges:NO];
+		[win.ofs[i] setPreservesContentDuringLiveResize:YES];
 	}
 	win.isofs = 0;
 	win.content = [[contentview alloc] initWithFrame:r];
@@ -397,10 +387,10 @@ resizeimg()
 	termreplacescreenimage(gscreen);
 	drawreplacescreenimage(gscreen);
 
-	sendmouse();
-
 	[win.content setHidden:NO];			/* reenable the flush */
 	unlock(&win.lk);
+
+	sendmouse();
 }
 
 static void
@@ -425,23 +415,17 @@ waitimg(int msec)
 }
 
 void
-_flushmemscreen(Rectangle r)
+flushmemscreen(Rectangle r)
 {
+	/* sanity check.  Trips from the initial "terminal" */
+    if (r.max.x < r.min.x || r.max.y < r.min.y)
+    	return;
+    
 	if(![win.content canDraw])
 		return;
 
-	NSRect rect;
-	rect = NSMakeRect(r.min.x, r.min.y, Dx(r), Dy(r));
-	flushimg(rect);		// OS X no longer needs to draw from the main thread
-}
-
-void
-flushmemscreen(Rectangle r)
-{
-	// sanity check.  Trips from the initial "terminal"
-    if (r.max.x < r.min.x || r.max.y < r.min.y) return;
-    
-	_flushmemscreen(r);
+	/* OS X no longer needs to draw from the main thread */
+	flushimg(NSMakeRect(r.min.x, r.min.y, Dx(r), Dy(r)));
 }
 
 static void drawimg(NSRect, NSCompositingOperation);
@@ -459,12 +443,12 @@ static void
 flushimg(NSRect rect)
 {
 	NSRect dr, r;
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+	NSAutoreleasePool *pool;
 
-	if([win.content lockFocusIfCanDraw] == NO){
-		[pool release];
+	if([win.content lockFocusIfCanDraw] == NO)
 		return;
-	}
+
+	pool = [[NSAutoreleasePool alloc] init];
 
 	if(win.needimg){
 		if(!NSEqualSizes(rect.size, [win.img size])){
@@ -515,31 +499,6 @@ flushimg(NSRect rect)
 	}
 	[win.content unlockFocus];
 	[pool release];
-}
-
-static void
-autoflushwin(int set)
-{
-	static NSTimer *t;
-
-	if(set){
-		if(t)
-			return;
-		/*
-		 * We need "NSRunLoopCommonModes", otherwise the
-		 * timer will not fire during live resizing.
-		 */
-		t = [NSTimer timerWithTimeInterval:0.033
-									target:[appdelegate class]
-								  selector:@selector(callflushwin:)
-								  userInfo:nil
-								   repeats:YES];
-		[[NSRunLoop currentRunLoop] addTimer:t forMode:NSRunLoopCommonModes];
-	}else{
-		[t invalidate];
-		t = nil;
-		win.deferflush = 0;
-	}
 }
 
 static void
@@ -612,6 +571,8 @@ static void gettouch(NSEvent*, int);
 static void updatecursor(void);
 
 @implementation contentview
+- (BOOL)preservesContentDuringLiveResize { return YES; }
+
 /*
  * "drawRect" is called each time Cocoa needs an
  * image, and each time we call "display".  It is
@@ -632,11 +593,9 @@ static void updatecursor(void);
 
 	/* build in a slight delay after the resize to catch up with drawing */
 	if([WIN inLiveResize])
-		waitimg(20);
-	else
 		waitimg(100);
-
-	[WIN flushWindow];
+	else
+		waitimg(500);
 }
 
 - (BOOL)isFlipped
