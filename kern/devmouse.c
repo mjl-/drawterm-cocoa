@@ -304,8 +304,7 @@ mouseread(Chan *c, void *va, long n, vlong off)
 				mouse.ri = 0;
 		} else {
 			while(!canlock(&cursor.lk))
-				osmsleep(10);
-				// tsleep(&up->sleep, return0, 0, 1);
+				osmsleep(1);	// no tsleep on non-Plan 9
 
 			m = mouse.state;
 			unlock(&cursor.lk);
