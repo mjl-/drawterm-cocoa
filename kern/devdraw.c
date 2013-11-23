@@ -183,7 +183,7 @@ static	char Ewriteoutside[] =	"writeimage outside image";
 static	char Enotfont[] =	"image not a font";
 static	char Eindex[] =		"character index out of range";
 static	char Enoclient[] =	"no such draw client";
-//static	char Edepth[] =		"image has bad depth";
+static	char Edepth[] =		"image has bad depth";
 static	char Enameused[] =	"image name in use";
 static	char Enoname[] =	"no image with that name";
 static	char Eoldname[] =	"named image no longer valid";
@@ -232,9 +232,10 @@ drawgen(Chan *c, char *name, Dirtab *dt, int ndt, int s, Dir *dp)
 		case Q3rd:
 			cl = drawclientofpath(c->qid.path);
 			if(cl == nil)
-				strcpy(up->genbuf, "??");
+				strncpy(up->genbuf, "??", sizeof up->genbuf);
 			else
-				sprint(up->genbuf, "%d", cl->clientid);
+				snprint(up->genbuf, sizeof up->genbuf,
+					"%d", cl->clientid);
 			mkqid(&q, Q2nd, 0, QTDIR);
 			devdir(c, q, up->genbuf, 0, eve, 0500, dp);
 			break;
@@ -265,9 +266,9 @@ drawgen(Chan *c, char *name, Dirtab *dt, int ndt, int s, Dir *dp)
 	}
 
 	if(t == Qwinname){
-			mkqid(&q, Qwinname, 0, QTFILE);
-			devdir(c, q, "winname", 0, eve, 0444, dp);
-			return 1;
+		mkqid(&q, Qwinname, 0, QTFILE);
+		devdir(c, q, "winname", 0, eve, 0444, dp);
+		return 1;
 	}
 
 	/*
@@ -282,7 +283,8 @@ drawgen(Chan *c, char *name, Dirtab *dt, int ndt, int s, Dir *dp)
 			cl = sdraw.client[s-1];
 			if(cl == 0)
 				return 0;
-			sprint(up->genbuf, "%d", cl->clientid);
+			snprint(up->genbuf, sizeof up->genbuf, "%d",
+				cl->clientid);
 			mkqid(&q, (s<<QSHIFT)|Q3rd, 0, QTDIR);
 			devdir(c, q, up->genbuf, 0, eve, 0555, dp);
 			return 1;
@@ -695,8 +697,8 @@ drawfreedimage(DImage *dimage)
 		drawfreedimage(dimage->fromname);
 		goto Return;
 	}
-//	if(dimage->image == screenimage)	/* don't free the display */
-//		goto Return;
+	if(dimage->image == screenimage)	/* don't free the display */
+		goto Return;
 	ds = dimage->dscreen;
 	if(ds){
 		l = dimage->image;
@@ -1220,10 +1222,13 @@ drawread(Chan *c, void *a, long n, vlong off)
 				error(Enodrawimage);
 			i = di->image;
 		}
-		n = sprint(a, "%11d %11d %11s %11d %11d %11d %11d %11d %11d %11d %11d %11d ",
-			cl->clientid, cl->infoid, chantostr(buf, i->chan), (i->flags&Frepl)==Frepl,
+		n = snprint(a, n,
+			"%11d %11d %11s %11d %11d %11d %11d %11d %11d %11d %11d %11d ",
+			cl->clientid, cl->infoid, chantostr(buf, i->chan),
+			(i->flags&Frepl)==Frepl,
 			i->r.min.x, i->r.min.y, i->r.max.x, i->r.max.y,
-			i->clipr.min.x, i->clipr.min.y, i->clipr.max.x, i->clipr.max.y);
+			i->clipr.min.x, i->clipr.min.y, i->clipr.max.x,
+			i->clipr.max.y);
 		cl->infoid = -1;
 		break;
 
@@ -1235,7 +1240,9 @@ drawread(Chan *c, void *a, long n, vlong off)
 		m = 0;
 		for(index = 0; index < 256; index++){
 			getcolor(index, &red, &green, &blue);
-			m += sprint((char*)p+m, "%11d %11lud %11lud %11lud\n", index, red>>24, green>>24, blue>>24);
+			m += snprint((char*)p+m, 4*12*256+1 - m,
+				"%11d %11lud %11lud %11lud\n", index,
+				red>>24, green>>24, blue>>24);
 		}
 		n = readstr(offset, a, n, (char*)p);
 		free(p);
@@ -1406,39 +1413,43 @@ printmesg(char *fmt, uchar *a, int plsprnt)
 {
 	char buf[256];
 	char *p, *q;
+	int s, left;
 
-	if(1|| plsprnt==0){
+//	if(1|| plsprnt==0){
+	if(plsprnt==0){
 		return;
 	}
 	q = buf;
 	*q++ = *a++;
 	for(p=fmt; *p; p++){
+		left = sizeof buf - 2 - (q - buf);	/* 2 for \n\0 */
 		switch(*p){
 		case 'l':
-			q += sprint(q, " %ld", (long)BGLONG(a));
+			q += snprint(q, left, " %ld", (long)BGLONG(a));
 			a += 4;
 			break;
 		case 'L':
-			q += sprint(q, " %.8lux", (ulong)BGLONG(a));
+			q += snprint(q, left, " %.8lux", (ulong)BGLONG(a));
 			a += 4;
 			break;
 		case 'R':
-			q += sprint(q, " [%d %d %d %d]", BGLONG(a), BGLONG(a+4), BGLONG(a+8), BGLONG(a+12));
+			q += snprint(q, left, " [%d %d %d %d]", BGLONG(a),
+				BGLONG(a+4), BGLONG(a+8), BGLONG(a+12));
 			a += 16;
 			break;
 		case 'P':
-			q += sprint(q, " [%d %d]", BGLONG(a), BGLONG(a+4));
+			q += snprint(q, left, " [%d %d]", BGLONG(a), BGLONG(a+4));
 			a += 8;
 			break;
 		case 'b':
-			q += sprint(q, " %d", *a++);
+			q += snprint(q, left, " %d", *a++);
 			break;
 		case 's':
-			q += sprint(q, " %d", BGSHORT(a));
+			q += snprint(q, left, " %d", BGSHORT(a));
 			a += 2;
 			break;
 		case 'S':
-			q += sprint(q, " %.4ux", BGSHORT(a));
+			q += snprint(q, left, " %.4ux", BGSHORT(a));
 			a += 2;
 			break;
 		}
@@ -1477,6 +1488,7 @@ drawmesg(Client *client, void *av, int n)
 		nexterror();
 	}
 	while((n-=m) > 0){
+		USED(fmt);
 		a += m;
 		switch(*a){
 		default:
@@ -2219,6 +2231,7 @@ drawblankscreen(int blank)
 void
 drawactive(int active)
 {
+/*
 	if(active){
 		drawblankscreen(0);
 		sdraw.blanktime = msec()/1000;
@@ -2226,6 +2239,7 @@ drawactive(int active)
 		if(blanktime && sdraw.blanktime && TK2SEC(msec()/1000- sdraw.blanktime)/60 >= blanktime)
 			drawblankscreen(1);
 	}
+*/
 }
 
 int
