@@ -76,7 +76,6 @@ struct
 void initcpu(void);
 void	topwin(void);
 
-static void hidebars(int);
 static void flushimg(NSRect);
 static void flushwin(void);
 static void followzoombutton(NSRect);
@@ -168,8 +167,6 @@ dtdefaults()
 
 - (void)windowDidChangeScreen:(id)arg
 {
-	if(win.isnfs || win.isofs)
-		hidebars(1);
 	[win.ofs[1] setFrame:[[WIN screen] frame] display:YES];
 }
 
@@ -186,17 +183,23 @@ dtdefaults()
 
 - (void)applicationDidBecomeActive:(id)arg{ in.willactivate = 0;}
 - (void)windowWillEnterFullScreen:(id)arg{ acceptresizing(1);}
-- (void)windowDidEnterFullScreen:(id)arg{ win.isnfs = 1; hidebars(1);}
-- (void)windowWillExitFullScreen:(id)arg{ win.isnfs = 0; hidebars(0);}
+- (void)windowDidEnterFullScreen:(id)arg{ win.isnfs = 1;}
+- (void)windowWillExitFullScreen:(id)arg{ win.isnfs = 0;}
 - (void)windowDidExitFullScreen:(id)arg
 {
 	NSButton *b;
 	b = [WIN standardWindowButton:NSWindowMiniaturizeButton];
 
-	if([b isEnabled] == 0){
+	if([b isEnabled] == 0)
 		[b setEnabled:YES];
-		hidebars(0);
-	}
+}
+
+- (NSApplicationPresentationOptions)window:(NSWindow *)window
+	willUseFullScreenPresentationOptions:(NSApplicationPresentationOptions)proposedOptions
+{
+    return (NSApplicationPresentationFullScreen |       // support full screen for this window (required)
+            NSApplicationPresentationHideDock |         // completely hide the dock
+            NSApplicationPresentationAutoHideMenuBar);  // yes we want the menu bar to show/hide
 }
 @end
 
@@ -860,9 +863,9 @@ getmousepos(void)
 
 	updatecursor();
 
-	if(win.isnfs || win.isofs)
-		hidebars(1);
-	else if(MAC_OS_X_VERSION_MIN_REQUIRED >= 1070 && [WIN inLiveResize]==NO){
+	if(win.isnfs || win.isofs) {
+		/* noop after removing hidebars() */
+	} else if(MAC_OS_X_VERSION_MIN_REQUIRED >= 1070 && [WIN inLiveResize]==NO){
 		if(p.x<12 && p.y<12 && p.x>2 && p.y>2)
 			acceptresizing(0);
 		else
@@ -1091,7 +1094,6 @@ togglefs(void)
 	[WIN setContentView:nil];
 
 	win.isofs = ! win.isofs;
-	hidebars(win.isofs);
 
 	/*
 	 * If we move the window from one space to another,
@@ -1116,31 +1118,6 @@ enum
 	Hiddenbars = NSApplicationPresentationHideDock
 		| NSApplicationPresentationHideMenuBar,
 };
-
-static void
-hidebars(int set)
-{
-	NSScreen *s,*s0;
-	NSApplicationPresentationOptions old, opt;
-
-	s = [WIN screen];
-	s0 = [[NSScreen screens] objectAtIndex:0];
-	old = [NSApp presentationOptions];
-
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
-	/* This bit can get lost, resulting in dreadful bugs. */
-	if(win.isnfs)
-		old |= NSApplicationPresentationFullScreen;
-#endif
-
-	if(set && s==s0)
-		opt = (old & ~Autohiddenbars) | Hiddenbars;
-	else
-		opt = old & ~(Autohiddenbars | Hiddenbars);
-
-	if(opt != old)
-		[NSApp setPresentationOptions:opt];
-}
 
 static void
 makemenu(void)
