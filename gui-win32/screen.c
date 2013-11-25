@@ -11,10 +11,13 @@
 #include "kern/fns.h"
 #include "error.h"
 #include "user.h"
+
+#define Image IMAGE
 #include <draw.h>
 #include <memdraw.h>
 #include <cursor.h>
 #include "screen.h"
+typedef struct Channel	Channel;		/* used in keyboard.h */
 #include "keyboard.h"
 
 Memimage	*gscreen;
@@ -218,7 +221,7 @@ winproc(void *a)
 	readybit = 1;
 	wakeup(&rend);
 
-	screen.reshaped = 0;
+	screeninfo.reshaped = 0;
 
 	while(GetMessage(&msg, NULL, 0, 0)) {
 		TranslateMessage(&msg);
