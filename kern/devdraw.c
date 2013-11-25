@@ -1415,8 +1415,7 @@ printmesg(char *fmt, uchar *a, int plsprnt)
 	char *p, *q;
 	int s, left;
 
-//	if(1|| plsprnt==0){
-	if(plsprnt==0){
+	if(1|| plsprnt==0){
 		return;
 	}
 	q = buf;

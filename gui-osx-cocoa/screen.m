@@ -446,17 +446,18 @@ static void
 flushimg(NSRect rect)
 {
 	NSRect dr, r;
-	NSAutoreleasePool *pool;
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
-	if([win.content lockFocusIfCanDraw] == NO)
+	if([win.content lockFocusIfCanDraw] == NO){
+		[pool release];
 		return;
-
-	pool = [[NSAutoreleasePool alloc] init];
+	}
 
 	if(win.needimg){
 		if(!NSEqualSizes(rect.size, [win.img size])){
 			LOG(@"flushimg reject %.0f %.0f", rect.size.width, rect.size.height);
 			[win.content unlockFocus];
+			[pool release];
 			return;
 		}
 		win.needimg = 0;
