@@ -27,11 +27,10 @@ LIBS1=\
 	libdraw/libdraw.a\
 	gui-$(GUI)/libgui.a\
 	libc/libc.a\
-#	libip/libip.a\
+	libip/libip.a\
 
 # stupid gcc
 LIBS=$(LIBS1) $(LIBS1) $(LIBS1) libmachdep.a
-# LIBS=$(LIBS1) libmachdep.a
 
 default: $(TARG)
 $(TARG): $(OFILES) $(LIBS)
@@ -75,6 +74,9 @@ libbio/libbio.a:
 
 libc/libc.a:
 	(cd libc; $(MAKE))
+
+libip/libip.a:
+	(cd libip; $(MAKE))
 
 libip/libip.a:
 	(cd libip; $(MAKE))
