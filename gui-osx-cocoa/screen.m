@@ -17,7 +17,6 @@
 #define Image IMAGE
 #include <draw.h>
 #include <memdraw.h>
-typedef struct Channel	Channel;		/* used in keyboard.h */
 #include <keyboard.h>
 
 #include <cursor.h>

@@ -78,8 +78,5 @@ libc/libc.a:
 libip/libip.a:
 	(cd libip; $(MAKE))
 
-libip/libip.a:
-	(cd libip; $(MAKE))
-
 gui-$(GUI)/libgui.a:
 	(cd gui-$(GUI); $(MAKE))

@@ -7,7 +7,7 @@ typedef struct 	Keyboardctl Keyboardctl;
 
 struct	Keyboardctl
 {
-	Channel	*c;	/* chan(Rune)[20] */
+	struct Channel	*c;	/* chan(Rune)[20] */
 
 	char		*file;
 	int		consfd;		/* to cons file */
