@@ -8,10 +8,13 @@ SDK108=-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.pla
 ARCHFLAGS64=-arch x86_64 -m64
 ARCHFLAGS32=-arch i386 -m32
 
-# select your target here by setting 32 or 64 and SDK options
+# Select your target here by setting 32 or 64 and SDK options.
+# The SDK can be left blank to use the default SDK for your platform, e.g.,
+# on a 10.9 machine with the latest Xcode that you don't need to run on
+# any prior versions, just keep the SDK as defined.
 ASFLAGS=$(ASFLAGS32)
 ARCHFLAGS=$(ARCHFLAGS32)
-SDK=$(SDK108)
+SDK=
 
 PTHREAD=-lpthread	# for Mac
 
@@ -27,7 +30,9 @@ AUDIO=none
 #WARNINGS=-Wshorten-64-to-32
 
 CC=clang
-CFLAGS=$(WARNINGS) $(ARCHFLAGS) $(SDK) -fwritable-strings -g -O0 -I. -I$(ROOT) -I$(ROOT)/include -I$(ROOT)/kern -c -D_THREAD_SAFE -DPTHREAD -DCOCOA
+CFLAGS=$(WARNINGS) $(ARCHFLAGS) $(SDK) -fwritable-strings -g -O0 -I. -I$(ROOT) \
+	-I$(ROOT)/include -I$(ROOT)/kern -I$(ROOT)/gui-osx-cocoa -c \
+	-D_THREAD_SAFE -DPTHREAD -DCOCOA
 
 LDADD=-g
 LDFLAGS=$(ARCHFLAGS) $(SDK) -framework Cocoa $(PTHREAD)
