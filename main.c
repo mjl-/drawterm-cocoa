@@ -82,7 +82,7 @@ getkey(char *user, char *dom)
 char*
 findkey(char **puser, char *dom)
 {
-	char buf[1024], *f[50], *p, *ep, *nextp, *pass, *user;
+	char buf[8192], *f[50], *p, *ep, *nextp, *pass, *user;
 	int nf, haveproto,  havedom, i;
 
 	for(p=secstorebuf; *p; p=nextp){
