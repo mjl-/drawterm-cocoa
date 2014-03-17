@@ -1,9 +1,11 @@
 # Mac OS X Cocoa version
-#   avaialable for SDK macosx10.7 or macosx10.8
+#   avaialable for SDK macosx10.7, macosx10.8, or macosx10.9
 
 SDK107=-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.7.sdk -mmacosx-version-min=10.7
 
 SDK108=-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk -mmacosx-version-min=10.8
+
+SDK109=-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk -mmacosx-version-min=10.9
 
 ARCHFLAGS64=-arch x86_64 -m64
 ARCHFLAGS32=-arch i386 -m32

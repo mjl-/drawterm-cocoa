@@ -16,6 +16,7 @@ enum {
 void	(*consdebug)(void) = nil;
 void	(*screenputs)(char*, int) = nil;
 
+int collecting;
 Queue*	kbdq;			/* unprocessed console input */
 Queue*	lineq;			/* processed console input */
 Queue*	serialoq;		/* serial console output */
@@ -351,7 +352,7 @@ echo(char *buf, int n)
 		case 'k':
 			killbig("^t ^t k");
 			return;
-/* remove ^t ^t r durring cpu in
+/* remove ^t ^t r during cpu in
 		case 'r':
 			exit(0);
 			return;
@@ -414,7 +415,7 @@ int
 kbdputc(Queue *q, int c)
 {
 	int	i;
-	static int collecting, nk;
+	static int nk;
 	static Rune kc[5];
 
 	 if(c == Kalt){

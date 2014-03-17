@@ -6,6 +6,8 @@
 #include	<errno.h>
 #include	<stdio.h> /* for remove, rename */
 #include	<limits.h>
+#include	<pwd.h>
+#include	<grp.h>
 
 #ifndef NAME_MAX
 #	define NAME_MAX 256
@@ -175,19 +177,24 @@ fsstat(Chan *c, uchar *buf, int n)
 {
 	Dir d;
 	struct stat stbuf;
+	struct passwd *pwd;
+	struct group *grp;
 	char path[MAXPATH];
 
 	if(n < BIT16SZ)
 		error(Eshortstat);
 
-	fspath(c, nil, path);
+	fspath(c, 0, path);
 	if(stat(path, &stbuf) < 0)
 		error(strerror(errno));
 
+	pwd = getpwuid(stbuf.st_uid);
+	grp = getgrgid(stbuf.st_gid);
+
 	d.name = lastelem(c);
-	d.uid = "unknown";
-	d.gid = "unknown";
-	d.muid = "unknown";
+	d.uid = pwd->pw_name;
+	d.gid = grp->gr_name;
+	d.muid = d.uid;
 	d.qid = c->qid;
 	d.mode = (c->qid.type<<24)|(stbuf.st_mode&0777);
 	d.atime = stbuf.st_atime;
@@ -233,7 +240,7 @@ fsopen(Chan *c, int mode)
 
 	uif = c->aux;
 
-	fspath(c, nil, path);
+	fspath(c, 0, path);
 	if(isdir) {
 		uif->dir = opendir(path);
 		if(uif->dir == 0)
@@ -411,7 +418,7 @@ fsremove(Chan *c)
 	int n;
 	char path[MAXPATH];
 
-	fspath(c, nil, path);
+	fspath(c, 0, path);
 	if(c->qid.type & QTDIR)
 		n = rmdir(path);
 	else
@@ -432,13 +439,13 @@ fswstat(Chan *c, uchar *buf, int n)
 	if(convM2D(buf, n, &d, strs) != n)
 		error(Ebadstat);
 	
-	fspath(c, nil, old);
+	fspath(c, 0, old);
 	if(stat(old, &stbuf) < 0)
 		error(strerror(errno));
 
 	uif = c->aux;
 
-	fspath(c, nil, old);
+	fspath(c, 0, old);
 	if(~d.mode != 0 && (int)(d.mode&0777) != (int)(stbuf.st_mode&0777)) {
 		if(chmod(old, d.mode&0777) < 0)
 			error(strerror(errno));
@@ -447,7 +454,7 @@ fswstat(Chan *c, uchar *buf, int n)
 	}
 
 	if(d.name[0] && strcmp(d.name, lastelem(c)) != 0) {
-		fspath(c, nil, old);
+		fspath(c, 0, old);
 		strcpy(new, old);
 		p = strrchr(new, '/');
 		strcpy(p+1, d.name);
@@ -569,7 +576,7 @@ fsdirread(Chan *c, uchar *va, int count, ulong offset)
 		rewinddir(uif->dir);
 	}
 
-	fspath(c, nil, dirpath);
+	fspath(c, 0, dirpath);
 
 	while(i+BIT16SZ < count) {
 		if(!p9readdir(de, uif))

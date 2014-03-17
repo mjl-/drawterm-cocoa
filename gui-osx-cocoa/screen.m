@@ -1,7 +1,6 @@
 #define Point OSXPoint
 #define Rect OSXRect
 
-#import <Cocoa/Cocoa.h>
 #import "screen-cocoa.h"
 
 #undef Point
@@ -28,6 +27,7 @@
 #include "bigarrow.h"
 #include "docpng.h"
 
+extern int		collecting;
 extern int		kbdputc(Queue*, int);
 extern ulong	msec(void);
 
@@ -72,7 +72,7 @@ struct
 	int		willactivate;
 } in;
 
-void initcpu(void);
+int initcpu(void);
 void	topwin(void);
 
 static void flushimg(NSRect);
@@ -1023,6 +1023,7 @@ sendmouse(void)
 	b = in.kbuttons | in.mbuttons | in.mscroll;
 	mousetrack(dp.x, dp.y, b, msec());
 	in.mscroll = 0;
+	collecting = 0;
 }
 
 void

@@ -182,13 +182,10 @@ cpumain(int argc, char **argv)
 	if((err = rexcall(&data, system, srvname)))
 		fatal(1, "%s: %s", err, system);
 
-	/* Tell the remote side the command to execute and where our working directory is */
+	/* Tell the remote side the command to execute */
 	if(cflag)
 		writestr(data, cmd, "command", 0);
-	if(getcwd(dat, sizeof(dat)) == 0)
-		writestr(data, "NO", "dir", 0);
-	else
-		writestr(data, dat, "dir", 0);
+	writestr(data, "NO", "dir", 0);
 
 	/* 
 	 *  Wait for the other end to execute and start our file service

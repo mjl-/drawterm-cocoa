@@ -1413,7 +1413,7 @@ printmesg(char *fmt, uchar *a, int plsprnt)
 {
 	char buf[256];
 	char *p, *q;
-	int s, left;
+	int left;
 
 	if(1|| plsprnt==0){
 		return;
