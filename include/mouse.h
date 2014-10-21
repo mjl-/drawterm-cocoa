@@ -13,8 +13,8 @@ struct	Mouse
 struct Mousectl
 {
 	Mouse 	m;
-	Channel	*c;	/* chan(Mouse) */
-	Channel	*resizec;	/* chan(int)[2] */
+	struct Channel	*c;	/* chan(Mouse) */
+	struct Channel	*resizec;	/* chan(int)[2] */
 			/* buffered in case client is waiting for a mouse action before handling resize */
 
 	char		*file;
@@ -38,7 +38,7 @@ extern Mousectl*	initmouse(char*, Image*);
 extern void		moveto(Mousectl*, Point);
 extern int			readmouse(Mousectl*);
 extern void		closemouse(Mousectl*);
-extern void		setcursor(Mousectl*, Cursor*);
+extern void		setcursor(Mousectl*, struct Cursor*);
 extern void		drawgetrect(Rectangle, int);
 extern Rectangle	getrect(int, Mousectl*);
 extern int	 		menuhit(int, Mousectl*, Menu*, Screen*);
