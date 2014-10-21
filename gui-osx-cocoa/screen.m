@@ -76,6 +76,7 @@ int initcpu(void);
 void	topwin(void);
 
 static void flushimg(NSRect);
+static void autoflushwin(int);
 static void flushwin(void);
 static void followzoombutton(NSRect);
 static void getmousepos(void);
@@ -142,8 +143,16 @@ dtdefaults()
 
 - (void)windowDidBecomeKey:(id)arg
 {
+	if(win.isnfs)
+		[win.content setHidden:NO];
 	getmousepos();
 	sendmouse();
+}
+
+- (void)windowDidResignKey:(NSNotification *)notification
+{
+	if(win.isnfs)
+		[win.content setHidden:YES];
 }
 
 - (void)windowDidResize:(id)arg
@@ -192,13 +201,24 @@ dtdefaults()
 	if([b isEnabled] == 0)
 		[b setEnabled:YES];
 }
+- (void)windowWillClose:(id)arg
+{
+	autoflushwin(0);	/* can crash otherwise */
+}
+
 
 - (NSApplicationPresentationOptions)window:(NSWindow *)window
 	willUseFullScreenPresentationOptions:(NSApplicationPresentationOptions)proposedOptions
 {
-    return (NSApplicationPresentationFullScreen |       // support full screen for this window (required)
-            NSApplicationPresentationHideDock |         // completely hide the dock
-            NSApplicationPresentationAutoHideMenuBar);  // yes we want the menu bar to show/hide
+	// support full screen for this window (required)
+	NSApplicationPresentationOptions ops = NSApplicationPresentationFullScreen;
+			  
+	if (floor(NSAppKitVersionNumber) >= NSAppKitVersionNumber10_7) {
+		ops = ops |
+			  NSApplicationPresentationHideDock |
+			  NSApplicationPresentationAutoHideMenuBar;
+	}
+	return ops;
 }
 @end
 
@@ -244,7 +264,7 @@ attachscreen(Rectangle *r, ulong *chan, int *depth, int *width, int *softscreen,
 - (void)makeKeyAndOrderFront:(id)arg
 {
 	LOG(@"makeKeyAndOrderFront");
-
+	autoflushwin(1);
 	[win.content setHidden:NO];
 	[super makeKeyAndOrderFront:arg];
 }
@@ -254,9 +274,11 @@ attachscreen(Rectangle *r, ulong *chan, int *depth, int *width, int *softscreen,
 	[NSApp hide:nil];
 
 	[win.content setHidden:YES];
+	autoflushwin(0);
 }
 - (void)deminiaturize:(id)arg
 {
+	autoflushwin(1);
 	[win.content setHidden:NO];
 	[super deminiaturize:arg];
 }
@@ -317,9 +339,10 @@ makewin(NSSize *s)
 
 	if(!set)
 		[w center];
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
-	[w setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
-#endif
+
+	if (floor(NSAppKitVersionNumber) >= NSAppKitVersionNumber10_7) {
+		[w setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
+	}
 	[w setContentMinSize:NSMakeSize(320,200)];
 
 	win.ofs[0] = w;
@@ -505,6 +528,32 @@ flushimg(NSRect rect)
 }
 
 static void
+autoflushwin(int set)
+{
+	static NSTimer *t;
+
+	if(set){
+		if(t)
+			return;
+		/*
+		 * We need "NSRunLoopCommonModes", otherwise the
+		 * timer will not fire during live resizing.
+		 */
+		t = [NSTimer
+			timerWithTimeInterval:0.033
+			target:[appdelegate class]
+			selector:@selector(callflushwin:) userInfo:nil
+			repeats:YES];
+		[[NSRunLoop currentRunLoop] addTimer:t
+			forMode:NSRunLoopCommonModes];
+	}else{
+		[t invalidate];
+		t = nil;
+		win.deferflush = 0;
+	}
+}
+
+static void
 flushwin(void)
 {
 	if(win.deferflush && win.needimg==0){
@@ -598,7 +647,7 @@ static void updatecursor(void);
 	if([WIN inLiveResize])
 		waitimg(100);
 	else
-		waitimg(500);
+		waitimg(500);		
 }
 
 - (BOOL)isFlipped
@@ -828,7 +877,8 @@ updatecursor(void)
 	 * Without this trick, we can come back from the dock
 	 * with a resize cursor.
 	 */
-	if(MAC_OS_X_VERSION_MIN_REQUIRED >= 1070)
+
+	if (floor(NSAppKitVersionNumber) >= NSAppKitVersionNumber10_7) 
 		[NSCursor unhide];
 }
 
@@ -908,11 +958,10 @@ getmouse(NSEvent *e)
 		break;
 
 	case NSScrollWheel:
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
-		d = [e scrollingDeltaY];
-#else
-		d = [e deltaY];
-#endif
+		if (floor(NSAppKitVersionNumber) >= NSAppKitVersionNumber10_7)
+			d = [e scrollingDeltaY];
+		else
+			d = [e deltaY];
 		if([e hasPreciseScrollingDeltas] == NO)
 			d *= 10.0;
 		if(d > 20.0)
@@ -1079,17 +1128,18 @@ togglefs(void)
 {
 	NSWindowCollectionBehavior opt, tmp;
 
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
-	NSScreen *s, *s0;
-	
-	s = [WIN screen];
-	s0 = [[NSScreen screens] objectAtIndex:0];
-	
-	if((s==s0 && useoldfullscreen==0) || win.isnfs) {
-		[WIN toggleFullScreen:nil];
-		return;
+	if (floor(NSAppKitVersionNumber) >= NSAppKitVersionNumber10_7) {
+		NSScreen *s, *s0;
+		
+		s = [WIN screen];
+		s0 = [[NSScreen screens] objectAtIndex:0];
+		
+		if((s==s0 && useoldfullscreen==0) || win.isnfs) {
+			[WIN toggleFullScreen:nil];
+			return;
+		}
 	}
-#endif
+
 	[win.content retain];
 	[WIN orderOut:nil];
 	[WIN setContentView:nil];
@@ -1110,15 +1160,6 @@ togglefs(void)
 	[WIN setCollectionBehavior:opt];
 	[win.content release];
 }
-
-enum
-{
-	Autohiddenbars = NSApplicationPresentationAutoHideDock
-		| NSApplicationPresentationAutoHideMenuBar,
-
-	Hiddenbars = NSApplicationPresentationHideDock
-		| NSApplicationPresentationHideMenuBar,
-};
 
 static void
 makemenu(void)
@@ -1296,6 +1337,7 @@ topwin(void)
 					   waitUntilDone:YES];
 
 	in.willactivate = 1;
+	[NSApp activateIgnoringOtherApps:YES];
 }
 
 void

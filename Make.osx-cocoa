@@ -1,11 +1,13 @@
 # Mac OS X Cocoa version
-#   avaialable for SDK macosx10.7, macosx10.8, or macosx10.9
+#   avaialable for SDK macosx10.7, macosx10.8, or macosx10.9, macosx10.10
 
 SDK107=-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.7.sdk -mmacosx-version-min=10.7
 
 SDK108=-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk -mmacosx-version-min=10.8
 
 SDK109=-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk -mmacosx-version-min=10.9
+
+SDK1010=-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk -mmacosx-version-min=10.10
 
 ARCHFLAGS64=-arch x86_64 -m64
 ARCHFLAGS32=-arch i386 -m32
@@ -16,7 +18,7 @@ ARCHFLAGS32=-arch i386 -m32
 # any prior versions, just keep the SDK as defined.
 ASFLAGS=$(ASFLAGS32)
 ARCHFLAGS=$(ARCHFLAGS32)
-SDK=
+SDK=-mmacosx-version-min=10
 
 PTHREAD=-lpthread	# for Mac
 
@@ -32,7 +34,7 @@ AUDIO=none
 #WARNINGS=-Wshorten-64-to-32
 
 CC=clang
-CFLAGS=$(WARNINGS) $(ARCHFLAGS) $(SDK) -fwritable-strings -g -O0 -I. -I$(ROOT) \
+CFLAGS=$(WARNINGS) $(ARCHFLAGS) $(SDK) -fwritable-strings -g -O0 -I. -I$(ROOT)\
 	-I$(ROOT)/include -I$(ROOT)/kern -I$(ROOT)/gui-osx-cocoa -c \
 	-D_THREAD_SAFE -DPTHREAD -DCOCOA
 
