@@ -1,5 +1,5 @@
 # Mac OS X Cocoa version
-#   avaialable for SDK macosx10.7, macosx10.8, or macosx10.9, macosx10.10
+#   available for SDK macosx10.7, macosx10.8, or macosx10.9, macosx10.10
 
 SDK107=-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.7.sdk -mmacosx-version-min=10.7
 
@@ -7,7 +7,7 @@ SDK108=-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.pla
 
 SDK109=-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk -mmacosx-version-min=10.9
 
-SDK1010=-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk -mmacosx-version-min=10.10
+SDK1010=-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk -mmacosx-version-min=10.7
 
 ARCHFLAGS64=-arch x86_64 -m64
 ARCHFLAGS32=-arch i386 -m32
@@ -18,7 +18,7 @@ ARCHFLAGS32=-arch i386 -m32
 # any prior versions, just keep the SDK as defined.
 ASFLAGS=$(ASFLAGS32)
 ARCHFLAGS=$(ARCHFLAGS32)
-SDK=-mmacosx-version-min=10
+SDK=$(SDK1010)
 
 PTHREAD=-lpthread	# for Mac
 

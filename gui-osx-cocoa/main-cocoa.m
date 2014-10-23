@@ -24,17 +24,23 @@ char *user;
 static int threadargc;
 static char **threadargv;
 
+P9AppDelegate * _appdelegate;
+
 int main(int argc, char *argv[])
 {
 	/* store these to pass to cpumain */
 	threadargc = argc;
 	threadargv = argv;
 
-	[NSApplication sharedApplication];
-	[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
-	[NSApp setDelegate:[appdelegate new]];
-	[NSApp activateIgnoringOtherApps:YES];
-	[NSApp run];
+	@autoreleasepool
+	{
+		_appdelegate = [[P9AppDelegate alloc] init];
+		[NSApplication sharedApplication];
+		[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+		[(NSApplication *)NSApp setDelegate:_appdelegate];
+		[NSApp activateIgnoringOtherApps:YES];
+		[NSApp run];
+	}
 
 	return 0;
 }

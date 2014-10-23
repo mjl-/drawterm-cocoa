@@ -33,6 +33,8 @@ extern ulong	msec(void);
 
 extern Cursorinfo cursor;
 
+extern P9AppDelegate *_appdelegate;
+
 #define LOG	if(0)NSLog
 
 int usegestures = 0;
@@ -100,7 +102,7 @@ dtdefaults()
 	return dict;
 }
 
-@implementation appdelegate
+@implementation P9AppDelegate
 
 @synthesize arrowCursor = _arrowCursor;
 
@@ -352,7 +354,7 @@ makewin(NSSize *s)
 											   defer:YES];
 	for(i=0; i<2; i++){
 		[win.ofs[i] setAcceptsMouseMovedEvents:YES];
-		[win.ofs[i] setDelegate:[NSApp delegate]];
+		[win.ofs[i] setDelegate:_appdelegate];
 		[win.ofs[i] setDisplaysWhenScreenProfileChanges:NO];
 		[win.ofs[i] setPreservesContentDuringLiveResize:YES];
 	}
@@ -541,7 +543,7 @@ autoflushwin(int set)
 		 */
 		t = [NSTimer
 			timerWithTimeInterval:0.033
-			target:[appdelegate class]
+			target:[P9AppDelegate class]
 			selector:@selector(callflushwin:) userInfo:nil
 			repeats:YES];
 		[[NSRunLoop currentRunLoop] addTimer:t
@@ -1005,6 +1007,8 @@ getgesture(NSEvent *e)
 				togglefs();
 		}
 		break;
+	default:
+		break;
 	}
 }
 
@@ -1087,8 +1091,8 @@ setmouse(Point p)
 
 	if(first){
 		/* Try to move Acme's scrollbars without that! */
-		CGEventSourceRef s = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
-;
+		CGEventSourceRef
+		s = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
 		CGEventSourceSetLocalEventsSuppressionInterval(s,0);
 		CFRelease(s);
 		first = 0;
@@ -1098,13 +1102,13 @@ setmouse(Point p)
 
 	in.mpos = NSMakePoint(p.x, p.y);	// race condition
 
-	q = [win.content convertPoint:in.mpos toView:nil];
-	q = [WIN convertBaseToScreen:q];
-
-	r = [[[NSScreen screens] objectAtIndex:0] frame];
-	q.y = r.size.height - q.y;	/* Quartz is top-left-based here */
-
-	CGWarpMouseCursorPosition(NSPointToCGPoint(q));
+	if (floor(NSAppKitVersionNumber) <= NSAppKitVersionNumber10_9) {
+		q = [win.content convertPoint:in.mpos toView:nil];
+		q = [WIN convertBaseToScreen:q];
+		r = [[[NSScreen screens] objectAtIndex:0] frame];
+		q.y = r.size.height - q.y;	/* Quartz is top-left-based here */
+		CGWarpMouseCursorPosition(NSPointToCGPoint(q));		
+	}
 }
 
 static void
@@ -1347,9 +1351,9 @@ screeninit(void)
 	 * Create window in main thread, else no cursor
 	 * change while resizing.
 	 */
-	[appdelegate performSelectorOnMainThread:@selector(callmakewin:)
-								  withObject:nil
-							   waitUntilDone:YES];
+	[P9AppDelegate performSelectorOnMainThread:@selector(callmakewin:)
+							 	    withObject:nil
+								 waitUntilDone:YES];
 
 	memimageinit();
 	gscreen = initimg();

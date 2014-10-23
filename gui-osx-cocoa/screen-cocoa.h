@@ -1,6 +1,6 @@
 #import <Cocoa/Cocoa.h>
 
-@interface appdelegate : NSObject <NSApplicationDelegate>
+@interface P9AppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate>
 {
 	NSCursor *_arrowCursor;
 }
