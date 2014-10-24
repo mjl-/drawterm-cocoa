@@ -1397,8 +1397,15 @@ mousectl(Cmdbuf *cb)
 void
 mouseset(Point xy)
 {
-	if(![win.content isHidden] && !eqpt(xy, Pt(in.mpos.x, in.mpos.y)))
-		setmouse(xy);
+	NSPoint p, q;
+	p = [WIN mouseLocationOutsideOfEventStream];
+	q = [win.content convertPoint:p fromView:nil];
+	LOG(@"mouseset (%f,%f)->(%d,%d)", q.x, q.y, xy.x, xy.y);
+
+	if(q.x >= 0.0 && q.y >= 0.0) {
+		if(![win.content isHidden] && !eqpt(xy, Pt(in.mpos.x, in.mpos.y)))
+			setmouse(xy);		
+	}
 }
 
 char*
