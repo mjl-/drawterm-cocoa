@@ -1102,13 +1102,19 @@ setmouse(Point p)
 
 	in.mpos = NSMakePoint(p.x, p.y);	// race condition
 
-	if (floor(NSAppKitVersionNumber) <= NSAppKitVersionNumber10_9) {
-		q = [win.content convertPoint:in.mpos toView:nil];
+	q = [win.content convertPoint:in.mpos toView:nil];
+	if (floor(NSAppKitVersionNumber) < NSAppKitVersionNumber10_7) {
+		#pragma clang diagnostic push
+		#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 		q = [WIN convertBaseToScreen:q];
-		r = [[[NSScreen screens] objectAtIndex:0] frame];
-		q.y = r.size.height - q.y;	/* Quartz is top-left-based here */
-		CGWarpMouseCursorPosition(NSPointToCGPoint(q));		
+		#pragma clang diagnostic pop
+	} else {
+		q = [WIN convertRectToScreen:NSMakeRect(q.x, q.y, 0, 0)].origin;
 	}
+	r = [[[NSScreen screens] objectAtIndex:0] frame];
+	q.y = r.size.height - q.y;	/* Quartz is top-left-based here */
+	LOG(@"setmouse (%d, %d)->(%f, %f)", p.x, p.y, q.x, q.y);
+	CGWarpMouseCursorPosition(NSPointToCGPoint(q));		
 }
 
 static void
