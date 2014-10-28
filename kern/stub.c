@@ -64,7 +64,7 @@ killbig(char* c)
 void
 dumpstack(void)
 {
-#ifdef __APPLE__
+#if defined(__APPLE__) && defined(DEBUG)
 	__builtin_trap();
 #endif
 }

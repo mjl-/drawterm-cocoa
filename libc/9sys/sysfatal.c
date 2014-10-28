@@ -11,7 +11,9 @@ _sysfatalimpl(char *fmt, va_list arg)
 		fprint(2, "%s: %s\n", argv0, buf);
 	else
 		fprint(2, "%s\n", buf);
+#ifndef __APPLE__
 #undef write
+#endif
 write(2, buf, strlen(buf));
 write(2, "\n", 1);
 	panic("sysfatal");
