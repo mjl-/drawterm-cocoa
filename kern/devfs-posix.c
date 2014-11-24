@@ -193,7 +193,13 @@ fsstat(Chan *c, uchar *buf, int n)
 
 	d.name = lastelem(c);
 	d.uid = pwd->pw_name;
-	d.gid = grp->gr_name;
+	if(grp)
+		d.gid = grp->gr_name;
+	else {
+		char buf[8];
+		sprint(buf, "%d", stbuf.st_gid);
+		d.gid = buf;
+	}
 	d.muid = d.uid;
 	d.qid = c->qid;
 	d.mode = (c->qid.type<<24)|(stbuf.st_mode&0777);
