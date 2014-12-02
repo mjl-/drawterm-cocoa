@@ -16,8 +16,8 @@ ARCHFLAGS32=-arch i386 -m32
 # The SDK can be left blank to use the default SDK for your platform, e.g.,
 # on a 10.9 machine with the latest Xcode that you don't need to run on
 # any prior versions, just keep the SDK as defined.
-ASFLAGS=$(ASFLAGS32)
-ARCHFLAGS=$(ARCHFLAGS32)
+ASFLAGS=
+ARCHFLAGS=
 SDK=$(SDK1010)
 
 PTHREAD=-lpthread	# for Mac
