@@ -418,7 +418,7 @@ xdraw(Memdrawparam *par)
 	 * maybe we should give up on all this?
 	 */
 
-//	if((dxm = dst->X) == nil)
+	if((dxm = dst->X) == nil)
 		return 0;
 
 	/*

@@ -1,0 +1,14 @@
+Versions released and their md5 sums:
+
+
+md5sum                            binary    type	       date
+--------------------------------  --------  -------------  ----------
+ccdcc0f84142b3564fc816a9f6a45daf  drawterm  Mach-O x86_64  2014-12-02
+
+
+
+The Mac OS X versions may be stamped with the attribute com.apple.quarantine
+once you unarchive it.  If that happens, and you trust the binary enough to run
+it, you can remove the attribute with:
+
+	xattr -d com.apple.quarantine /PATH/TO/drawterm
