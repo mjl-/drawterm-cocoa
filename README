@@ -1,10 +1,11 @@
 DETAILS
 -------
-This port of drawterm focuses on removing the Carbon drawing routines and adding
-Cocoa runtime and drawing support to the Mac OS X version.  The specific Cocoa
-source changes are located in gui-osx-cocoa merging in code from Plan 9 Port's
-devdraw and updates found in 9vx.  Additional source updates bring drawterm in
-line with recent changes in the Plan 9 source, specifically:
+This port of drawterm focuses on removing the Carbon drawing routines and
+adding Cocoa runtime and drawing support to the Mac OS X version.  The
+specific Cocoa source changes are located in gui-osx-cocoa merging in code
+from Plan 9 Port's devdraw and updates found in 9vx.  Additional source
+updates bring drawterm in line with recent changes in the Plan 9 source,
+specifically:
 
 - libc restructured and updated
 
@@ -85,6 +86,4 @@ TO DO:
 	9term window instead.
 
 - Should implement /dev/label.
-
-
 
