@@ -8,6 +8,7 @@
 #include	<limits.h>
 #include	<pwd.h>
 #include	<grp.h>
+#include	<sys/time.h>
 
 #ifndef NAME_MAX
 #	define NAME_MAX 256
@@ -468,6 +469,13 @@ fswstat(Chan *c, uchar *buf, int n)
 			error(strerror(errno));
 	}
 
+	if(d.mtime > stbuf.st_mtime) {
+		struct timeval tvp[2];
+		tvp[0].tv_sec = d.mtime;
+		tvp[1].tv_sec = d.mtime;
+		utimes(old, tvp);
+	}
+
 /*
 	p = name2pass(gid, d.gid);
 	if(p == 0)
@@ -568,6 +576,8 @@ fsdirread(Chan *c, uchar *va, int count, ulong offset)
 	struct stat stbuf;
 	char path[MAXPATH], dirpath[MAXPATH];
 	Ufsinfo *uif;
+	struct passwd *pwd;
+	struct group *grp;
 
 /*print("fsdirread %s\n", c2name(c));*/
 	i = 0;
@@ -600,9 +610,16 @@ fsdirread(Chan *c, uchar *va, int count, ulong offset)
 			/* but continue... probably a bad symlink */
 		}
 
-		d.uid = "unknown";
-		d.gid = "unknown";
-		d.muid = "unknown";
+		pwd = getpwuid(stbuf.st_uid);
+		grp = getgrgid(stbuf.st_gid);
+
+		d.uid = pwd->pw_name;
+		if(grp)
+			d.gid = grp->gr_name;
+		else {
+			d.gid = "unknown";
+		}
+		d.muid = d.uid;
 		d.qid = fsqid(path, &stbuf);
 		d.mode = (d.qid.type<<24)|(stbuf.st_mode&0777);
 		d.atime = stbuf.st_atime;
