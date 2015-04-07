@@ -469,11 +469,16 @@ fswstat(Chan *c, uchar *buf, int n)
 			error(strerror(errno));
 	}
 
-	if(d.mtime > stbuf.st_mtime) {
-		struct timeval tvp[2];
-		tvp[0].tv_sec = d.mtime;
-		tvp[1].tv_sec = d.mtime;
-		utimes(old, tvp);
+	if(d.mtime != -1){
+		struct timeval tv[2];
+
+		if (d.atime == -1) {
+			if (gettimeofday(&tv[0], NULL) == -1)
+				error(strerror(errno));		
+		} else
+			tv[0].tv_sec = d.atime;
+		tv[1].tv_sec = d.mtime;
+		utimes(old, tv);
 	}
 
 /*
