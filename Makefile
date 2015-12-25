@@ -33,7 +33,7 @@ LIBS1=\
 LIBS=$(LIBS1) $(LIBS1) $(LIBS1) libmachdep.a
 
 default: $(TARG)
-$(TARG): $(OFILES) $(LIBS)
+$(TARG): $(OFILES) $(LIBS1)
 	$(CC) $(LDFLAGS) -o $(TARG) $(OFILES) $(LIBS) $(LDADD)
 
 %.$O: %.c
@@ -42,41 +42,44 @@ $(TARG): $(OFILES) $(LIBS)
 clean:
 	rm -f *.o */*.o */*.a *.a $(TARG)
 
-kern/libkern.a:
+kern/libkern.a: force_look
 	(cd kern; $(MAKE))
 
-exportfs/libexportfs.a:
+exportfs/libexportfs.a: force_look
 	(cd exportfs; $(MAKE))
 
-libauth/libauth.a:
+libauth/libauth.a: force_look
 	(cd libauth; $(MAKE))
 	
-libauthsrv/libauthsrv.a:
+libauthsrv/libauthsrv.a: force_look
 	(cd libauthsrv; $(MAKE))
 
-libmp/libmp.a:
+libmp/libmp.a: force_look
 	(cd libmp; $(MAKE))
 
-libsec/libsec.a:
+libsec/libsec.a: force_look
 	(cd libsec; $(MAKE))
 
-libmemdraw/libmemdraw.a:
+libmemdraw/libmemdraw.a: force_look
 	(cd libmemdraw; $(MAKE))
 
-libmemlayer/libmemlayer.a:
+libmemlayer/libmemlayer.a: force_look
 	(cd libmemlayer; $(MAKE))
 
-libdraw/libdraw.a:
+libdraw/libdraw.a: force_look
 	(cd libdraw; $(MAKE))
 
-libbio/libbio.a:
+libbio/libbio.a: force_look
 	(cd libbio; $(MAKE))
 
-libc/libc.a:
+libc/libc.a: force_look
 	(cd libc; $(MAKE))
 
-libip/libip.a:
+libip/libip.a: force_look
 	(cd libip; $(MAKE))
 
-gui-$(GUI)/libgui.a:
+gui-$(GUI)/libgui.a: force_look
 	(cd gui-$(GUI); $(MAKE))
+
+force_look:
+

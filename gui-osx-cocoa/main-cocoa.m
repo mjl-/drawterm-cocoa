@@ -70,7 +70,7 @@ sizebug(void)
 	assert(sizeof(uvlong)==8);
 }
 
-int
+void
 initcpu(void)
 {
 	eve = getuser();
@@ -110,7 +110,6 @@ initcpu(void)
 	terminit();
 
 	kproc("cpumain", cpumainkproc, nil);
-	return 0;
 }
 
 char*

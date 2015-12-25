@@ -26,7 +26,7 @@ static char *keyspec = "";
 static AuthInfo *p9any(int);
 
 #define system csystem
-static char	*system;
+char	*system;
 static int	cflag;
 extern int	dbg;
 extern char*   base;   // fs base for devroot 
@@ -206,6 +206,8 @@ cpumain(int argc, char **argv)
 	}
 	write(data, "OK", 2);
 
+	kicklabel(system);
+	
 	/* Begin serving the gnot namespace */
 	exportfs(data, msgsize);
 	fatal(1, "starting exportfs");

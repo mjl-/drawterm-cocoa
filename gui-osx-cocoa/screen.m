@@ -74,8 +74,9 @@ struct
 	int		willactivate;
 } in;
 
-int initcpu(void);
+void initcpu(void);
 void	topwin(void);
+void kicklabel(char *label);
 
 static void flushimg(NSRect);
 static void autoflushwin(int);
@@ -86,6 +87,7 @@ static void makeicon(void);
 static void makemenu(void);
 static void makewin(NSSize*);
 static void sendmouse(void);
+static void kicklabel0(char*);
 static void setcursor0(NSCursor*);
 static void togglefs(void);
 static void acceptresizing(int);
@@ -109,6 +111,7 @@ dtdefaults()
 + (void)callflushwin:(id)arg{ flushwin();}
 + (void)callmakewin:(NSValue*)v{ makewin([v pointerValue]);}
 + (void)callsetcursor0:(NSCursor*)c { setcursor0(c); }
++ (void)callkicklabel0:(NSValue*)v{ kicklabel0([v pointerValue]);}
 
 - (void)calltogglefs:(id)arg{ togglefs();}
 
@@ -246,7 +249,6 @@ attachscreen(Rectangle *r, ulong *chan, int *depth, int *width, int *softscreen,
 	*depth = gscreen->depth;
 	*width = gscreen->width;
 	*softscreen = 1;
-	topwin();
 
 	return gscreen->data->bdata;
 }
@@ -337,15 +339,15 @@ makewin(NSSize *s)
 								  styleMask:Winstyle
 									backing:NSBackingStoreBuffered
 									  defer:NO];
-	[w setMinSize:NSMakeSize(320,200)];
 
 	if(!set)
 		[w center];
-
 	if (floor(NSAppKitVersionNumber) >= NSAppKitVersionNumber10_7) {
 		[w setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
 	}
-	[w setContentMinSize:NSMakeSize(320,200)];
+	[w setMinSize:NSMakeSize(320,200)];
+	[w registerForDraggedTypes:[NSArray arrayWithObjects: 
+		NSFilenamesPboardType, nil]];
 
 	win.ofs[0] = w;
 	win.ofs[1] = [[appwin alloc] initWithContentRect:sr
@@ -361,6 +363,8 @@ makewin(NSSize *s)
 	win.isofs = 0;
 	win.content = [[contentview alloc] initWithFrame:r];
 	[WIN setContentView:win.content];
+
+	topwin();
 }
 
 static Memimage*
@@ -1260,6 +1264,29 @@ putsnarf(char *s)
 	qunlock(&snarfl);
 
 	[str release];
+}
+
+void
+kicklabel(char *label)
+{
+	if(label == nil)
+		return;
+
+	[P9AppDelegate
+		performSelectorOnMainThread:@selector(callkicklabel0:)
+		withObject:[NSValue valueWithPointer:label]
+		waitUntilDone:YES];
+}
+
+static void
+kicklabel0(char *label) {
+	NSString *s;
+
+	s = [[NSString alloc] initWithUTF8String:label];
+	[win.ofs[0] setTitle:s];
+	[win.ofs[1] setTitle:s];
+	[[NSApp dockTile] setBadgeLabel:s];
+	[s release];
 }
 
 int
