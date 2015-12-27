@@ -16,7 +16,6 @@ extern void	osinit(void);
 extern void		printinit(void);
 extern void		procinit0(void);
 extern void	screeninit(void);
-extern	void	terminit(void);
 
 char *argv0;
 char *user;
@@ -106,8 +105,6 @@ initcpu(void)
 		panic("open1: %r");
 	if(open("/dev/cons", OWRITE) != 2)
 		panic("open2: %r");
-
-	terminit();
 
 	kproc("cpumain", cpumainkproc, nil);
 }

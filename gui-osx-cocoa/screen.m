@@ -108,6 +108,7 @@ dtdefaults()
 
 @synthesize arrowCursor = _arrowCursor;
 
++ (void)callflushimg:(NSValue*)v{ flushimg([v rectValue]);}
 + (void)callflushwin:(id)arg{ flushwin();}
 + (void)callmakewin:(NSValue*)v{ makewin([v pointerValue]);}
 + (void)callsetcursor0:(NSCursor*)c { setcursor0(c); }
@@ -124,8 +125,10 @@ dtdefaults()
 	[pinfo enableSuddenTermination];
 
 	/* default winstyle */
-	Winstyle = NSTitledWindowMask | NSClosableWindowMask |
-		NSMiniaturizableWindowMask | NSResizableWindowMask;
+	Winstyle = NSTitledWindowMask
+		 | NSClosableWindowMask
+		 | NSMiniaturizableWindowMask
+		 | NSResizableWindowMask;
 
 	dict = dtdefaults();
 	if(dict != nil) {
@@ -242,7 +245,7 @@ attachscreen(Rectangle *r, ulong *chan, int *depth, int *width, int *softscreen,
 	if(X != nil)
 		*X = gscreen->X;
 
-	LOG(@"attachscreen %d,%d,%d,%d",
+	LOG(@"attachscreen %d %d %d %d",
 		gscreen->r.min.x, gscreen->r.min.y, Dx(gscreen->r), Dy(gscreen->r));
 	*r = gscreen->r;
 	*chan = gscreen->chan;
@@ -329,6 +332,7 @@ makewin(NSSize *s)
 		set = 0;
 	}
 
+	LOG(@"makewin %d %d", Dx(wr), Dy(wr));
 	r.origin.x = wr.min.x;
 	r.origin.y = sr.size.height-wr.max.y;	/* winsize is top-left-based */
 	r.size.width = min(Dx(wr), r.size.width);
@@ -346,8 +350,8 @@ makewin(NSSize *s)
 		[w setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
 	}
 	[w setMinSize:NSMakeSize(320,200)];
-	[w registerForDraggedTypes:[NSArray arrayWithObjects: 
-		NSFilenamesPboardType, nil]];
+//	[w registerForDraggedTypes:
+//		[NSArray arrayWithObjects:  NSFilenamesPboardType, nil]];
 
 	win.ofs[0] = w;
 	win.ofs[1] = [[appwin alloc] initWithContentRect:sr
@@ -405,6 +409,7 @@ resizeimg()
 {
 	Memimage *m;
 
+	LOG(@"resizeimg");
 	if(win.img == nil)
 		return;
 
@@ -448,15 +453,31 @@ waitimg(int msec)
 void
 flushmemscreen(Rectangle r)
 {
+	NSRect dr = NSMakeRect(r.min.x, r.min.y, Dx(r), Dy(r));
+	LOG(@"flushmemscreen %d %d", Dx(r), Dy(r));
+
 	/* sanity check.  Trips from the initial "terminal" */
-    if (r.max.x < r.min.x || r.max.y < r.min.y)
+    if (r.max.x < r.min.x || r.max.y < r.min.y) {
+		LOG(@"  wa %d %d %d %d", r.max.x, r.min.x, r.max.y, r.min.y);
     	return;
-    
-	if(![win.content canDraw])
+    }
+
+	if([win.content canDraw] == 0) {
+		LOG(@"  win can't draw");
 		return;
+	}
 
 	/* OS X no longer needs to draw from the main thread */
-	flushimg(NSMakeRect(r.min.x, r.min.y, Dx(r), Dy(r)));
+	if (floor(NSAppKitVersionNumber) < NSAppKitVersionNumber10_10) {
+		[P9AppDelegate performSelectorOnMainThread:@selector(callflushimg:)
+			withObject:[NSValue valueWithRect:dr]
+			waitUntilDone:YES
+			modes:[NSArray arrayWithObjects:
+				NSRunLoopCommonModes,
+				@"waiting image", nil]];
+	} else {
+		flushimg(dr);
+	}
 }
 
 static void drawimg(NSRect, NSCompositingOperation);
@@ -474,26 +495,24 @@ static void
 flushimg(NSRect rect)
 {
 	NSRect dr, r;
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
 	if([win.content lockFocusIfCanDraw] == NO){
-		[pool release];
+		LOG(@"flushimg reject (%.0f, %.0f) can't draw", rect.size.width, rect.size.height);
 		return;
 	}
 
 	if(win.needimg){
+		/*
 		if(!NSEqualSizes(rect.size, [win.img size])){
-			LOG(@"flushimg reject %.0f %.0f", rect.size.width, rect.size.height);
+			LOG(@"flushimg reject (%.0f, %.0f) != (%.0f, %.0f)",
+				rect.size.width, rect.size.height,
+				[win.img size].width, [win.img size].height);
 			[win.content unlockFocus];
-			[pool release];
 			return;
-		}
+		}*/
 		win.needimg = 0;
 	}else
 		win.deferflush = 1;
-
-	LOG(@"flushimg ok %.0f %.0f", rect.size.width, rect.size.height);
-
 
 	/*
 	 * Unless we are inside "drawRect", we have to round
@@ -522,7 +541,7 @@ flushimg(NSRect rect)
 	dr = NSIntersectionRect(r, rect);
 	drawimg(dr, NSCompositeCopy);
 
-	if(MAC_OS_X_VERSION_MIN_REQUIRED < 1070 && win.isofs==0){
+	if (floor(NSAppKitVersionNumber) < NSAppKitVersionNumber10_7 && win.isofs==0){
 		r.origin.x = [win.img size].width - Handlesize;
 		r.origin.y = [win.img size].height - Handlesize;
 		r.size = NSMakeSize(Handlesize, Handlesize);
@@ -530,7 +549,7 @@ flushimg(NSRect rect)
 			drawresizehandle();
 	}
 	[win.content unlockFocus];
-	[pool release];
+	LOG(@"flushimg ok %.0f %.0f", rect.size.width, rect.size.height);
 }
 
 static void
@@ -545,13 +564,11 @@ autoflushwin(int set)
 		 * We need "NSRunLoopCommonModes", otherwise the
 		 * timer will not fire during live resizing.
 		 */
-		t = [NSTimer
-			timerWithTimeInterval:0.033
-			target:[P9AppDelegate class]
-			selector:@selector(callflushwin:) userInfo:nil
-			repeats:YES];
-		[[NSRunLoop currentRunLoop] addTimer:t
-			forMode:NSRunLoopCommonModes];
+		t = [NSTimer timerWithTimeInterval:0.033
+				target:[P9AppDelegate class]
+				selector:@selector(callflushwin:) userInfo:nil
+				repeats:YES];
+		[[NSRunLoop currentRunLoop] addTimer:t forMode:NSRunLoopCommonModes];
 	}else{
 		[t invalidate];
 		t = nil;
@@ -578,7 +595,7 @@ drawimg(NSRect dr, NSCompositingOperation op)
 	if(NSIsEmptyRect(dr))
 		return;
 
-	sr =  [win.content convertRect:dr fromView:nil];
+	sr = [win.content convertRect:dr fromView:nil];
 
 	i = CGImageCreateWithImageInRect([win.img CGImage], NSRectToCGRect(dr));
 	c = [[WIN graphicsContext] graphicsPort];
@@ -1285,7 +1302,20 @@ kicklabel0(char *label) {
 	s = [[NSString alloc] initWithUTF8String:label];
 	[win.ofs[0] setTitle:s];
 	[win.ofs[1] setTitle:s];
-	[[NSApp dockTile] setBadgeLabel:s];
+
+	{
+		NSArray *a = [s componentsSeparatedByString:@"."];
+		if ([a count] > 1) {
+			NSString *name;
+			name = [a firstObject];
+			if ([name integerValue] > 0) {
+				name = [a lastObject];
+			}
+			[[NSApp dockTile] setBadgeLabel:name];				
+		} else {
+			[[NSApp dockTile] setBadgeLabel:s];
+		}
+	}
 	[s release];
 }
 
@@ -1308,9 +1338,9 @@ cursoroff(int d)
 }
 
 void
-setcursor(Cursor *curs)
+setcursor(Cursor *c)
 {
-	setcursor0(makecursor(curs));
+	setcursor0(makecursor(c));
 }
 
 static void
@@ -1330,7 +1360,6 @@ setcursor0(NSCursor *c)
 static NSCursor*
 makecursor(Cursor *c)
 {
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	NSBitmapImageRep *r;
 	NSCursor *d;
 	NSImage *i;
@@ -1362,7 +1391,6 @@ makecursor(Cursor *c)
 
 	d = [[NSCursor alloc] initWithImage:i hotSpot:p];
 	[i release];
-	[pool release];
 	return d;
 }
 
@@ -1375,6 +1403,7 @@ topwin(void)
 
 	in.willactivate = 1;
 	[NSApp activateIgnoringOtherApps:YES];
+	[WIN display];
 }
 
 void
@@ -1390,6 +1419,7 @@ screeninit(void)
 
 	memimageinit();
 	gscreen = initimg();
+	terminit();
 }
 
 // PAL - no palette handling.  Don't intend to either.

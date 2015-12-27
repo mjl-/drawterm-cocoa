@@ -1,5 +1,5 @@
 # Mac OS X Cocoa version
-#   available for SDK macosx10.7, macosx10.8, or macosx10.9, macosx10.10
+#   available for SDK Mac OS X 10.7 to 10.11
 
 SDK107=-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.7.sdk -mmacosx-version-min=10.7
 
