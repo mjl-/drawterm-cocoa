@@ -3,6 +3,7 @@ Versions available on https://bitbucket.org/jas/drawterm-cocoa/downloads:
 
 md5sum                            binary    type	       date
 --------------------------------  --------  -------------  ----------
+92af5e36b283f0fab9bfd167b5c73936  drawterm  Mach-O x86_64  2015-12-26
 28b03cc035c4daa5c8a5e0c20d356d85  drawterm  Mach-O x86_64  2015-04-07
 ccdcc0f84142b3564fc816a9f6a45daf  drawterm  Mach-O x86_64  2014-12-02
 
