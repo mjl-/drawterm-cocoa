@@ -33,7 +33,7 @@ LIBS1=\
 LIBS=$(LIBS1) $(LIBS1) $(LIBS1) libmachdep.a
 
 default: $(TARG)
-$(TARG): $(OFILES) $(LIBS1)
+$(TARG): $(OFILES) $(LIBS1) libmachdep.a
 	$(CC) $(LDFLAGS) -o $(TARG) $(OFILES) $(LIBS) $(LDADD)
 
 %.$O: %.c

@@ -24,6 +24,9 @@ static int	readstr(int, char*, int);
 static char	*rexcall(int*, char*, char*);
 static char *keyspec = "";
 static AuthInfo *p9any(int);
+#if defined(COCOA)
+	extern void kicklabel(char *label);
+#endif
 
 #define system csystem
 char	*system;
@@ -206,8 +209,10 @@ cpumain(int argc, char **argv)
 	}
 	write(data, "OK", 2);
 
+#if defined(COCOA)
 	kicklabel(system);
-	
+#endif
+
 	/* Begin serving the gnot namespace */
 	exportfs(data, msgsize);
 	fatal(1, "starting exportfs");
