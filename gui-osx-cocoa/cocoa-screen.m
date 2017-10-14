@@ -1,7 +1,7 @@
 #define Point OSXPoint
 #define Rect OSXRect
 
-#import "screen-cocoa.h"
+#import "cocoa-screen.h"
 
 #undef Point
 #undef Rect
@@ -50,6 +50,9 @@ Screeninfo	screeninfo;
 NSUInteger Winstyle;
 
 #define WIN	win.ofs[win.isofs]
+
+#define EnterFullScreenTitle @"Enter Full Screen"
+#define ExitFullScreenTitle @"Exit Full Screen"
 
 struct
 {
@@ -729,6 +732,9 @@ static void updatecursor(void);
 {
 	gettouch(e, NSTouchPhaseCancelled);
 }
+- (void)cut:(id)sender {}
+- (void)copy:(id)sender {}
+- (void)paste:(id)sender {}
 @end
 
 #pragma clang diagnostic ignored "-Wgnu-designator"
@@ -1190,18 +1196,26 @@ togglefs(void)
 	[WIN makeKeyAndOrderFront:nil];
 	[WIN setCollectionBehavior:opt];
 	[win.content release];
+
+	NSMenuItem *m;
+	m = [[NSApp mainMenu] itemWithTitle:(win.isofs ? EnterFullScreenTitle:ExitFullScreenTitle)];
+	if (m != nil) {
+		m.title = (win.isofs ? ExitFullScreenTitle : EnterFullScreenTitle);
+		[[NSApp mainMenu] update];
+	}
 }
 
 static void
 makemenu(void)
 {
 	NSMenu *m;
-	NSMenuItem *i0, *i1, *i2, *item;
+	NSMenuItem *i0, *i1, *i2, *i3, *item;
 
 	m = [NSMenu new];
 	i0 = [m addItemWithTitle:@"app" action:nil keyEquivalent:@""];
-	i1 = [m addItemWithTitle:@"View" action:nil keyEquivalent:@""];
-	i2 = [m addItemWithTitle:@"Window" action:nil keyEquivalent:@""];
+	i1 = [m addItemWithTitle:@"Edit" action:nil keyEquivalent:@""];
+	i2 = [m addItemWithTitle:@"View" action:nil keyEquivalent:@""];
+	i3 = [m addItemWithTitle:@"Window" action:nil keyEquivalent:@""];
 	[NSApp setMainMenu:m];
 	[m release];
 
@@ -1211,12 +1225,19 @@ makemenu(void)
 	[i0 setSubmenu:m];
 	[m release];
 
+	m = [[NSMenu alloc] initWithTitle:@"Edit"];
+	[m addItemWithTitle:@"Cut" action:@selector(cut:) keyEquivalent:@"x"];
+	[m addItemWithTitle:@"Copy" action:@selector(copy:) keyEquivalent:@"c"];
+	[m addItemWithTitle:@"Paste" action:@selector(paste:) keyEquivalent:@"v"];
+	[i1 setSubmenu:m];
+	[m release];
+
 	m = [[NSMenu alloc] initWithTitle:@"View"];
-	item = [m addItemWithTitle:@"Enter Full Screen"
+	item = [m addItemWithTitle:EnterFullScreenTitle
 						action:@selector(calltogglefs:)
 				 keyEquivalent:@"f"];
 	[item setKeyEquivalentModifierMask:(NSCommandKeyMask | NSControlKeyMask)];
-	[i1 setSubmenu:m];
+	[i2 setSubmenu:m];
 	[m release];
 
 	m = [[NSMenu alloc] initWithTitle:@"Window"];
@@ -1224,7 +1245,7 @@ makemenu(void)
 						action:@selector(miniaturize:)
 				 keyEquivalent:@"m"];
 	[m addItemWithTitle:@"Zoom" action:@selector(zoom:) keyEquivalent:@""];
-	[i2 setSubmenu:m];
+	[i3 setSubmenu:m];
 	[m release];
 }
 

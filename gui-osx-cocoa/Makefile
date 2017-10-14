@@ -8,7 +8,7 @@ OFILES=\
 	draw.$O\
 	load.$O\
 	mouseswap.$O\
-	screen.$O\
+	cocoa-screen.$O\
 	main-cocoa.$O
 
 default: $(LIB)

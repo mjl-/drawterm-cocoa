@@ -611,7 +611,7 @@ fsdirread(Chan *c, uchar *va, int count, ulong offset)
 		memset(&stbuf, 0, sizeof stbuf);
 
 		if(stat(path, &stbuf) < 0) {
-			/* fprint(2, "dir: bad path %s\n", path); */
+			fprint(2, "dir: bad path %s\n", path);
 			/* but continue... probably a bad symlink */
 		}
 
