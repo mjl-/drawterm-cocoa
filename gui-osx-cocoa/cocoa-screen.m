@@ -341,7 +341,7 @@ makewin(NSSize *s)
 		wr = Rect(0, 0, (int)s->width, (int)s->height);
 		set = 0;
 	}else{
-		wr = Rect(0, 0, (int)sr.size.width*2/3, (int)sr.size.height*2/3);
+		wr = Rect(0, 0, (int)sr.size.width*3/4, (int)sr.size.height*3/4);
 		set = 0;
 	}
 
