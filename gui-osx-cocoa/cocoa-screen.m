@@ -107,6 +107,10 @@ dtdefaults()
 	return dict;
 }
 
+@interface P9AppDelegate ()
+@property (strong) NSMenuItem *fsmenuitem;
+@end
+
 @implementation P9AppDelegate
 
 @synthesize arrowCursor = _arrowCursor;
@@ -154,16 +158,16 @@ dtdefaults()
 
 - (void)windowDidBecomeKey:(id)arg
 {
-	//if(win.isnfs) /* causes annoying redraw on Mavericks */
-	//	[win.content setHidden:NO];
+	if(win.isnfs) /* causes annoying redraw on Mavericks */
+		[win.content setHidden:NO];
 	getmousepos();
 	sendmouse();
 }
 
 - (void)windowDidResignKey:(NSNotification *)notification
 {
-	//if(win.isnfs) /* causes annoying redraw on Mavericks */
-	//	[win.content setHidden:YES];
+	if(win.isnfs) /* causes annoying redraw on Mavericks */
+		[win.content setHidden:YES];
 }
 
 - (void)windowDidResize:(id)arg
@@ -202,7 +206,11 @@ dtdefaults()
 
 - (void)applicationDidBecomeActive:(id)arg{ in.willactivate = 0;}
 - (void)windowWillEnterFullScreen:(id)arg{ acceptresizing(1);}
-- (void)windowDidEnterFullScreen:(id)arg{ win.isnfs = 1;}
+- (void)windowDidEnterFullScreen:(id)arg
+{
+	win.isnfs = 1;
+	self.fsmenuitem.title = ExitFullScreenTitle;
+}
 - (void)windowWillExitFullScreen:(id)arg{ win.isnfs = 0;}
 - (void)windowDidExitFullScreen:(id)arg
 {
@@ -211,6 +219,8 @@ dtdefaults()
 
 	if([b isEnabled] == 0)
 		[b setEnabled:YES];
+
+	self.fsmenuitem.title = EnterFullScreenTitle;
 }
 - (void)windowWillClose:(id)arg
 {
@@ -1196,13 +1206,6 @@ togglefs(void)
 	[WIN makeKeyAndOrderFront:nil];
 	[WIN setCollectionBehavior:opt];
 	[win.content release];
-
-	NSMenuItem *m;
-	m = [[NSApp mainMenu] itemWithTitle:(win.isofs ? EnterFullScreenTitle:ExitFullScreenTitle)];
-	if (m != nil) {
-		m.title = (win.isofs ? ExitFullScreenTitle : EnterFullScreenTitle);
-		[[NSApp mainMenu] update];
-	}
 }
 
 static void
@@ -1222,14 +1225,14 @@ makemenu(void)
 	m = [[NSMenu alloc] initWithTitle:@"app"];
 	[m addItemWithTitle:@"Hide" action:@selector(hide:) keyEquivalent:@"h"];
 	[m addItemWithTitle:@"Quit" action:@selector(terminate:) keyEquivalent:@"q"];
-	[i0 setSubmenu:m];
+	i0.submenu = m;
 	[m release];
 
 	m = [[NSMenu alloc] initWithTitle:@"Edit"];
 	[m addItemWithTitle:@"Cut" action:@selector(cut:) keyEquivalent:@"x"];
 	[m addItemWithTitle:@"Copy" action:@selector(copy:) keyEquivalent:@"c"];
 	[m addItemWithTitle:@"Paste" action:@selector(paste:) keyEquivalent:@"v"];
-	[i1 setSubmenu:m];
+	i1.submenu = m;
 	[m release];
 
 	m = [[NSMenu alloc] initWithTitle:@"View"];
@@ -1237,7 +1240,8 @@ makemenu(void)
 						action:@selector(calltogglefs:)
 				 keyEquivalent:@"f"];
 	[item setKeyEquivalentModifierMask:(NSCommandKeyMask | NSControlKeyMask)];
-	[i2 setSubmenu:m];
+	_appdelegate.fsmenuitem = item;
+	i2.submenu = m;
 	[m release];
 
 	m = [[NSMenu alloc] initWithTitle:@"Window"];
@@ -1245,7 +1249,7 @@ makemenu(void)
 						action:@selector(miniaturize:)
 				 keyEquivalent:@"m"];
 	[m addItemWithTitle:@"Zoom" action:@selector(zoom:) keyEquivalent:@""];
-	[i3 setSubmenu:m];
+	i3.submenu = m;
 	[m release];
 }
 

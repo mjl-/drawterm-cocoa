@@ -1,5 +1,5 @@
 #import <Cocoa/Cocoa.h>
-#import "screen-cocoa.h"
+#import "cocoa-screen.h"
 
 #include "u.h"
 #include "libc.h"
