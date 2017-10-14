@@ -1,3 +1,4 @@
+DESTROOT=/usr/local
 ROOT=.
 
 # The new osx-cocoa provides its own version of main.o
@@ -41,6 +42,9 @@ $(TARG): $(OFILES) $(LIBS1) libmachdep.a
 
 clean:
 	rm -f *.o */*.o */*.a *.a $(TARG)
+
+install: $(TARG)
+	install $(TARG) $(DESTROOT)/bin
 
 kern/libkern.a: force_look
 	(cd kern; $(MAKE))

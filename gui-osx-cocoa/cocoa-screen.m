@@ -154,16 +154,16 @@ dtdefaults()
 
 - (void)windowDidBecomeKey:(id)arg
 {
-	if(win.isnfs)
-		[win.content setHidden:NO];
+	//if(win.isnfs) /* causes annoying redraw on Mavericks */
+	//	[win.content setHidden:NO];
 	getmousepos();
 	sendmouse();
 }
 
 - (void)windowDidResignKey:(NSNotification *)notification
 {
-	if(win.isnfs)
-		[win.content setHidden:YES];
+	//if(win.isnfs) /* causes annoying redraw on Mavericks */
+	//	[win.content setHidden:YES];
 }
 
 - (void)windowDidResize:(id)arg
