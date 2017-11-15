@@ -302,6 +302,7 @@ attachscreen(Rectangle *r, ulong *chan, int *depth, int *width, int *softscreen,
 	[win.content setHidden:NO];
 	[super deminiaturize:arg];
 }
+
 - (void)zoom:(id)sender
 {
 	NSUInteger old, style;
@@ -318,6 +319,41 @@ attachscreen(Rectangle *r, ulong *chan, int *depth, int *width, int *softscreen,
 	if(style != old)
 		[WIN setStyleMask:style];
 }
+/*
+- (NSDragOperation)draggingEntered:(id)arg
+{
+	NSPasteboard *b;
+	NSDragOperation op;
+	
+	op = [arg draggingSourceOperationMask];
+	b = [arg draggingPasteboard];
+	
+	if([[b types] containsObject:NSFilenamesPboardType])
+	if(op&NSDragOperationLink)
+		return NSDragOperationLink;
+	
+	return NSDragOperationNone;
+}
+
+- (BOOL)performDragOperation:(id)arg
+{
+	NSPasteboard *b;
+	NSArray *files;
+	int i, n;
+
+	b = [arg draggingPasteboard];
+	if(![[b types] containsObject:NSFilenamesPboardType])
+		return NO;
+
+	files = [b propertyListForType:NSFilenamesPboardType];
+	n = [files count];
+	for(i=0; i<n; i++)
+	if(fork() == 0)
+		execl("macedit", "macedit", [[files objectAtIndex:i] UTF8String], nil);
+
+	return YES;
+}
+*/
 @end
 
 double
@@ -363,9 +399,10 @@ makewin(NSSize *s)
 		[w setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
 	}
 	[w setMinSize:NSMakeSize(320,200)];
-//	[w registerForDraggedTypes:
-//		[NSArray arrayWithObjects:  NSFilenamesPboardType, nil]];
-
+/*
+	[w registerForDraggedTypes:
+		[NSArray arrayWithObjects: NSFilenamesPboardType, nil]];
+*/
 	win.ofs[0] = w;
 	win.ofs[1] = [[appwin alloc] initWithContentRect:sr
 										   styleMask:NSBorderlessWindowMask
