@@ -779,9 +779,6 @@ static void updatecursor(void);
 {
 	gettouch(e, NSTouchPhaseCancelled);
 }
-- (void)cut:(id)sender {}
-- (void)copy:(id)sender {}
-- (void)paste:(id)sender {}
 @end
 
 #pragma clang diagnostic ignored "-Wgnu-designator"
@@ -1249,13 +1246,12 @@ static void
 makemenu(void)
 {
 	NSMenu *m;
-	NSMenuItem *i0, *i1, *i2, *i3, *item;
+	NSMenuItem *i0, *i1, *i2, *item;
 
 	m = [NSMenu new];
 	i0 = [m addItemWithTitle:@"app" action:nil keyEquivalent:@""];
-	i1 = [m addItemWithTitle:@"Edit" action:nil keyEquivalent:@""];
-	i2 = [m addItemWithTitle:@"View" action:nil keyEquivalent:@""];
-	i3 = [m addItemWithTitle:@"Window" action:nil keyEquivalent:@""];
+	i1 = [m addItemWithTitle:@"View" action:nil keyEquivalent:@""];
+	i2 = [m addItemWithTitle:@"Window" action:nil keyEquivalent:@""];
 	[NSApp setMainMenu:m];
 	[m release];
 
@@ -1265,20 +1261,13 @@ makemenu(void)
 	i0.submenu = m;
 	[m release];
 
-	m = [[NSMenu alloc] initWithTitle:@"Edit"];
-	[m addItemWithTitle:@"Cut" action:@selector(cut:) keyEquivalent:@"x"];
-	[m addItemWithTitle:@"Copy" action:@selector(copy:) keyEquivalent:@"c"];
-	[m addItemWithTitle:@"Paste" action:@selector(paste:) keyEquivalent:@"v"];
-	i1.submenu = m;
-	[m release];
-
 	m = [[NSMenu alloc] initWithTitle:@"View"];
 	item = [m addItemWithTitle:EnterFullScreenTitle
 						action:@selector(calltogglefs:)
 				 keyEquivalent:@"f"];
 	[item setKeyEquivalentModifierMask:(NSCommandKeyMask | NSControlKeyMask)];
 	_appdelegate.fsmenuitem = item;
-	i2.submenu = m;
+	i1.submenu = m;
 	[m release];
 
 	m = [[NSMenu alloc] initWithTitle:@"Window"];
@@ -1286,7 +1275,7 @@ makemenu(void)
 						action:@selector(miniaturize:)
 				 keyEquivalent:@"m"];
 	[m addItemWithTitle:@"Zoom" action:@selector(zoom:) keyEquivalent:@""];
-	i3.submenu = m;
+	i2.submenu = m;
 	[m release];
 }
 
