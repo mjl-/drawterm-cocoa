@@ -35,7 +35,7 @@
 
 #ifndef KEYSYM2UCS_INCLUDED
   
-#include "x11-keysym2ucs.h"
+#include "keysym2ucs.h"
 #define VISIBLE /* */
 
 #else
@@ -824,7 +824,7 @@ static struct codepair {
 };
 
 VISIBLE
-long _p9keysym2ucs(KeySym keysym)
+long keysym2ucs(KeySym keysym)
 {
 	int min = 0;
 	int max = sizeof(keysymtab) / sizeof(struct codepair) - 1;
@@ -849,6 +849,7 @@ long _p9keysym2ucs(KeySym keysym)
 	default:
 		break;
 	}
+
 
 	/* first check for Latin-1 characters (1:1 mapping) */
 	if ((keysym >= 0x0020 && keysym <= 0x007e) ||
