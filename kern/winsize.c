@@ -2,7 +2,6 @@
 #include <libc.h>
 #include <draw.h>
 #include <memdraw.h>
-#include "devdraw.h"
 
 int
 parsewinsize(char *s, Rectangle *r, int *havemin)
