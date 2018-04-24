@@ -130,7 +130,7 @@ void
 reply(Fcall *r, Fcall *t, char *err)
 {
 	uchar *data;
-	int n;
+	int m, n;
 
 	t->tag = r->tag;
 	t->fid = r->fid;
@@ -148,8 +148,8 @@ if(0) iprint("-> %F\n", t);
 	if(data == nil)
 		fatal(Enomem);
 	n = convS2M(t, data, messagesize);
-	if(write(netfd, data, n)!=n){
-		iprint("exportfs short write: %r\n");
+	if((m=write(netfd, data, n))!=n){
+		iprint("wrote %d got %d (%r)\n", n, m);
 		fatal("write");
 	}
 	free(data);
